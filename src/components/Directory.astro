@@ -1,0 +1,283 @@
+---
+import EntityCard from './EntityCard.astro';
+import { url, type Hub, type Guide } from '../lib/catalogue';
+import Icon from './Icon.astro';
+import CombatText from './CombatText.astro';
+import { combatStyleNames } from '../lib/combat-styles';
+import { guideHasDirectoryStyle } from '../lib/combat-style-directory';
+import { groupCollectionCards } from '../lib/collection-cards';
+const {
+  hubs,
+  guides,
+  label = 'guides',
+  filters = false,
+  styleFilters = filters,
+  parentPath = '',
+} = Astro.props as {
+  hubs?: Hub[];
+  guides?: Guide[];
+  label?: string;
+  filters?: boolean;
+  styleFilters?: boolean;
+  parentPath?: string;
+};
+const cardGroups = hubs ? groupCollectionCards(hubs, parentPath) : [];
+const filterGroups = [
+  { label: 'Solo', values: ['Solo'] },
+  { label: 'Group', values: ['Group', 'Duo', 'Trio'] },
+  {
+    label: 'AFK / Low Effort',
+    values: ['AFK / Low Effort', 'AFK', 'Low Effort', 'AFK & Low Effort'],
+  },
+];
+const attributes = filterGroups.filter(({ values }) =>
+  hubs?.some((h) =>
+    h.guides.some((g) => g.attributes.some((a) => values.includes(a))),
+  ),
+);
+const alphabet = label === 'bosses' && hubs;
+const alphabetGroup = (name: string) => {
+  const first = name.normalize('NFKD').toUpperCase().charAt(0);
+  if (!/[A-Z]/.test(first)) return '0–9';
+  return ['A–C', 'D–F', 'G–I', 'J–L', 'M–O', 'P–R', 'S–U', 'V–Z'].find(
+    (range) => first >= range[0] && first <= range[2],
+  )!;
+};
+let previousGroup = '';
+const topics = [...new Set(guides?.map((g) => g.category) || [])].sort();
+const hubStyles = new Map(
+  hubs?.map((hub) => {
+    const members = new Set(hub.containedBosses?.map((member) => member.id));
+    const entries = [
+      ...hub.guides,
+      ...(hubs || [])
+        .filter((member) => members.has(member.id))
+        .flatMap((member) => member.guides),
+    ];
+    return [
+      hub.id,
+      combatStyleNames.filter((style) =>
+        entries.some((guide) => guideHasDirectoryStyle(guide, style)),
+      ),
+    ];
+  }),
+);
+const styles = hubs
+  ? styleFilters
+    ? combatStyleNames.filter((style) =>
+        [...hubStyles.values()].some((styles) => styles.includes(style)),
+      )
+    : []
+  : [...new Set(guides?.flatMap((g) => g.styles) || [])];
+---
+
+<section data-directory data-directory-label={label}>
+  <div
+    class:list={[
+      'directory-controls',
+      { 'sticky-directory-controls': !!alphabet },
+    ]}
+  >
+    <label class="directory-search">
+      <Icon name="search" size={26} />
+      <input
+        data-directory-query
+        type="search"
+        placeholder={
+          hubs && label === 'bosses' ? 'Find a boss…' : `Search ${label}…`
+        }
+        aria-label={`Filter ${label}`}
+      />
+    </label>
+    {filters && (
+      <div class="directory-filters" role="group" aria-label="Boss methods">
+        <button
+          type="button"
+          data-dir-key="attribute"
+          data-value=""
+          aria-pressed="true"
+        >
+          All bosses
+        </button>
+        {attributes.map((a) => (
+          <button
+            type="button"
+            data-dir-key="attribute"
+            data-value={a.label}
+            data-match-values={JSON.stringify(a.values)}
+            aria-pressed="false"
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+    )}
+    {topics.length > 1 && (
+      <div
+        class="directory-filters topic-filters"
+        role="group"
+        aria-label="Guide topics"
+      >
+        <button
+          type="button"
+          data-dir-key="topic"
+          data-value=""
+          aria-pressed="true"
+        >
+          All topics
+        </button>
+        {topics.map((topic) => (
+          <button
+            type="button"
+            data-dir-key="topic"
+            data-value={topic}
+            aria-pressed="false"
+          >
+            {topic}
+          </button>
+        ))}
+      </div>
+    )}
+    {styles.length > 1 && (
+      <div
+        class="directory-filters style-filters"
+        role="group"
+        aria-label="Combat styles"
+      >
+        <button
+          type="button"
+          data-dir-key="style"
+          data-value=""
+          aria-pressed="true"
+        >
+          All styles
+        </button>
+        {styles.map((style) => (
+          <button
+            type="button"
+            data-dir-key="style"
+            data-value={style}
+            aria-pressed="false"
+            class:list={{ 'icon-filter': !!hubs }}
+            aria-label={hubs ? style : undefined}
+            title={hubs ? style : undefined}
+          >
+            {hubs ? (
+              <Icon name={style.toLowerCase()} size={22} />
+            ) : (
+              <CombatText text={style} />
+            )}
+          </button>
+        ))}
+      </div>
+    )}
+    <div class="directory-status">
+      <p class="filter-status muted" aria-live="polite">
+        {(hubs || guides || []).length} {label}
+      </p>
+      <button type="button" class="text-button" data-directory-reset hidden>
+        Clear filters
+      </button>
+    </div>
+  </div>
+  <div class:list={[hubs ? 'entity-grid' : 'guide-list']}>
+    {hubs
+      ? cardGroups.map((cardGroup) => (
+          <div class="directory-card-group" data-directory-card-group>
+            {cardGroup.heading && (
+              <h2 class="directory-group-heading" data-directory-group-heading>
+                {cardGroup.heading}
+              </h2>
+            )}
+            {cardGroup.cards.map((hub) => {
+              const group = alphabet ? alphabetGroup(hub.name) : '';
+              const heading = group !== previousGroup;
+              previousGroup = group;
+              return (
+                <>
+                  {heading && (
+                    <h2 class="alphabet-heading" data-alphabet-heading>
+                      {group}
+                    </h2>
+                  )}
+                  <div
+                    data-entry
+                    data-styles={JSON.stringify(hubStyles.get(hub.id) || [])}
+                    data-attributes={JSON.stringify(
+                      hub.guides.flatMap((g) => g.attributes),
+                    )}
+                    data-terms={[
+                      hub.name,
+                      ...(hub.aliases ?? []),
+                      ...(hub.containedBosses ?? []).map((b) => b.name),
+                      ...hub.guides.flatMap((g) => g.aliases),
+                    ]
+                      .join(' ')
+                      .toLowerCase()}
+                  >
+                    <EntityCard hub={hub} />
+                  </div>
+                </>
+              );
+            })}
+          </div>
+        ))
+      : guides?.map((g) => (
+          <a
+            data-entry
+            data-category={g.category}
+            data-styles={JSON.stringify(g.styles)}
+            data-terms={[
+              g.title,
+              g.category,
+              g.subject,
+              ...g.aliases,
+              ...g.styles,
+              ...g.methods.map((m) => m.label),
+            ]
+              .join(' ')
+              .toLowerCase()}
+            href={url(g.href)}
+          >
+            <div>
+              {topics.length > 1 && <small>{g.category}</small>}
+              <h3>
+                <CombatText text={g.title} />
+              </h3>
+              {g.styles.length > 0 && (
+                <span class="muted">
+                  <CombatText text={g.styles.join(' · ')} />
+                </span>
+              )}
+            </div>
+            <span aria-hidden="true">↗</span>
+          </a>
+        ))}
+  </div>
+  <div class="empty-state" hidden>
+    <h3>No matching guides</h3>
+    <p>Try a different name or remove your filters.</p>
+    <button type="button" class="button" data-directory-reset>
+      Clear filters
+    </button>
+  </div>
+</section>
+<script src="../scripts/directory.ts" />
+<style>
+  .directory-card-group {
+    display: contents;
+  }
+  .directory-group-heading {
+    grid-column: 1 / -1;
+    margin: 24px 0 0;
+  }
+  .directory-card-group:first-child > .directory-group-heading {
+    margin-top: 0;
+  }
+  .style-filters button.icon-filter {
+    justify-content: center;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 9px;
+  }
+</style>

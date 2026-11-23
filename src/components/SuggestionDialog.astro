@@ -1,0 +1,47 @@
+---
+import '../styles/suggestions.css';
+---
+
+<dialog
+  id="suggestion-dialog"
+  class="suggestion-dialog"
+  data-suggestion-dialog
+  aria-labelledby="suggestion-title"
+  aria-describedby="suggestion-intro"
+>
+  <header class="suggestion-dialog-header">
+    <h2 id="suggestion-title">Suggest improvement</h2>
+    <button
+      type="button"
+      data-suggestion-close
+      aria-label="Close suggestion form"
+    >
+      ×
+    </button>
+  </header>
+  <form data-suggestion-form>
+    <p class="suggestion-context" data-suggestion-context></p>
+    <input type="hidden" name="guidePath" />
+    <input type="hidden" name="pageUrl" />
+    <p id="suggestion-intro" class="suggestion-intro">
+      Your feedback helps keep PvME accurate and up to date.
+    </p>
+    <p class="suggestion-pending">
+      You'll be able to share suggestions here soon. For now, share your
+      feedback with the PvME community on Discord.
+    </p>
+    <div class="suggestion-dialog-actions">
+      <button type="button" data-suggestion-close>
+        Close
+      </button>
+      <a
+        href="https://discord.com/channels/534508796639182860/1020853673317908500"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open Discord Suggestions ↗
+      </a>
+    </div>
+  </form>
+</dialog>
+<script src="../scripts/suggestions.ts" />

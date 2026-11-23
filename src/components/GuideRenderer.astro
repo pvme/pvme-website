@@ -1,0 +1,113 @@
+---
+import { type Guide, getCatalogue } from '../lib/catalogue';
+import { getRendered } from '../lib/renderer';
+import GuideActions from './GuideActions.astro';
+import '../styles/preset-previews.css';
+import '../styles/embed-accordions.css';
+const { guide } = Astro.props as { guide: Guide };
+const rendered = getRendered(guide, getCatalogue().root);
+---
+
+<div class="reader-layout">
+  <details class="mobile-toc">
+    <summary>
+      On this page{' '}
+      <svg aria-hidden="true" width="10" height="7" viewBox="0 0 10 7">
+        <path d="M0 0h10L5 7z" fill="currentColor" />
+      </svg>
+    </summary>
+    <GuideActions guide={guide} />
+    <nav aria-label="Guide sections">
+      {rendered.toc
+        .filter((h) => h.level > 1)
+        .map((h) => (
+          <a href={`#${h.id}`} class:list={[{ 'toc-nested': h.level > 2 }]}>
+            {h.text}
+          </a>
+        ))}
+    </nav>
+  </details>
+  <article class="guide-content" aria-label={guide.title}>
+    <div id={`${guide.id}--guide-start`}></div>
+    <div set:html={rendered.html} />
+  </article>
+  <aside class="toc">
+    <GuideActions guide={guide} />
+    <p>ON THIS PAGE</p>
+    <nav aria-label="Table of contents">
+      {rendered.toc
+        .filter((h) => h.level > 1)
+        .map((h) => (
+          <a href={`#${h.id}`} class:list={[{ 'toc-nested': h.level > 2 }]}>
+            {h.text}
+          </a>
+        ))}
+    </nav>
+  </aside>
+</div>
+<script src="../scripts/preset-carousel.ts" />
+<script src="../scripts/embed-accordions.ts" />
+<script>
+  document.querySelectorAll<HTMLDetailsElement>('.mobile-toc').forEach((toc) =>
+    toc.addEventListener('click', (e) => {
+      if ((e.target as Element).closest('a')) toc.open = false;
+    }),
+  );
+  document.querySelectorAll<HTMLElement>('.reader-layout').forEach((reader) => {
+    const mobileToc = reader.querySelector<HTMLElement>('.mobile-toc');
+    const links = [...reader.querySelectorAll<HTMLAnchorElement>('.toc a')];
+    const activate = (id: string) =>
+      links.forEach((a) => {
+        const current = a.hash === '#' + id;
+        a.classList.toggle('active', current);
+        if (current) a.setAttribute('aria-current', 'location');
+        else a.removeAttribute('aria-current');
+      });
+    if (links[0]) activate(links[0].hash.slice(1));
+    // Observer callbacks are unordered; use positions from the visible guide.
+    let scheduled = false;
+    const update = () => {
+      scheduled = false;
+      if (reader.closest('[hidden]')) return;
+      if (mobileToc && mobileToc.getClientRects().length) {
+        const bounds = mobileToc.getBoundingClientRect();
+        const content = reader.closest('main')?.getBoundingClientRect();
+        if (content) {
+          mobileToc.style.setProperty(
+            '--toc-inset-left',
+            `${content.left - bounds.left}px`,
+          );
+          mobileToc.style.setProperty(
+            '--toc-inset-right',
+            `${bounds.right - content.right}px`,
+          );
+        }
+        const offset = parseFloat(getComputedStyle(mobileToc).top) || 0;
+        mobileToc.classList.toggle('is-stuck', bounds.top <= offset + 1);
+      }
+      const headings = links
+        .map((a) =>
+          document.getElementById(decodeURIComponent(a.hash.slice(1))),
+        )
+        .filter((h): h is HTMLElement => !!h && h.getClientRects().length > 0);
+      const current =
+        headings.filter((h) => h.getBoundingClientRect().top <= 110).at(-1) ||
+        headings[0];
+      if (current) activate(current.id);
+    };
+    const schedule = () => {
+      if (!scheduled) {
+        scheduled = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    window.addEventListener('hashchange', schedule);
+    document.addEventListener('pvme:guide-change', schedule);
+    schedule();
+    links.forEach((a) =>
+      a.addEventListener('click', () => activate(a.hash.slice(1))),
+    );
+  });
+</script>

@@ -1,0 +1,17 @@
+---
+import { url, type Hub } from '../lib/catalogue';
+const { bosses = [] } = Astro.props as { bosses?: Hub['containedBosses'] };
+---
+
+{bosses.length > 0 && (
+  <section class="related" aria-label="Bosses in this dungeon">
+    <h2>Bosses in this dungeon</h2>
+    <div class="resource-list">
+      {bosses.map((boss) => (
+        <a href={url(boss.href)}>
+          {boss.name} <span aria-hidden="true">→</span>
+        </a>
+      ))}
+    </div>
+  </section>
+)}

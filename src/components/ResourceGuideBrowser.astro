@@ -1,0 +1,170 @@
+---
+import Icon from './Icon.astro';
+import CollectionRows from './CollectionRows.astro';
+import type { CollectionEntry } from '../lib/collection-entries';
+import ResourceIcon from './ResourceIcon.astro';
+import { groupCollectionCards } from '../lib/collection-cards';
+import { url, type Guide } from '../lib/catalogue';
+import {
+  resourceGuideTitle,
+  type ResourceCategory,
+} from '../lib/resource-guides';
+const {
+  guides = [],
+  entries: suppliedEntries,
+  label = 'Collection guides',
+  categories,
+  categoryTitle,
+  styleLinks = [],
+  searchable = true,
+  parentPath = '/resources/',
+  entryLabel = suppliedEntries ? 'entries' : 'guides',
+} = Astro.props as {
+  guides?: Guide[];
+  entries?: CollectionEntry[];
+  label?: string;
+  categories?: ResourceCategory[];
+  categoryTitle?: string;
+  searchable?: boolean;
+  parentPath?: string;
+  entryLabel?: string;
+  styleLinks?: Pick<
+    ResourceCategory,
+    'id' | 'title' | 'icon' | 'description' | 'href' | 'collectionId'
+  >[];
+};
+const entries =
+  suppliedEntries ||
+  guides.map((guide) => ({
+    id: guide.id,
+    title: resourceGuideTitle(guide.title),
+    href: guide.href,
+    category: guide.category,
+    styles: guide.styles,
+    subtitle: categories?.find((category) =>
+      category.guides.some((member) => member.id === guide.id),
+    )?.title,
+    terms: [
+      resourceGuideTitle(guide.title),
+      guide.title,
+      guide.category,
+      guide.subject,
+      ...guide.aliases,
+      ...guide.styles,
+      ...guide.methods.map((method) => method.label),
+    ]
+      .join(' ')
+      .toLowerCase(),
+  }));
+const cardGroups = groupCollectionCards<
+  Pick<
+    ResourceCategory,
+    'id' | 'title' | 'icon' | 'description' | 'href' | 'collectionId'
+  >
+>([...(categories || []), ...styleLinks], parentPath);
+---
+
+<section
+  class:list={[
+    'resource-guide-browser',
+    { 'resource-guide-browser-static': !searchable },
+  ]}
+  data-resource-guide-browser={searchable || undefined}
+  data-directory={searchable || undefined}
+  data-directory-label={entryLabel}
+>
+  {searchable && (
+    <>
+      <label class="resource-guide-search">
+        <Icon name="search" size={25} />
+        <input
+          type="search"
+          data-directory-query
+          placeholder={
+            categoryTitle ? `Search within ${categoryTitle}…` : 'Search guides…'
+          }
+          aria-label={
+            categoryTitle
+              ? `Search within ${categoryTitle}`
+              : 'Search Resources guides'
+          }
+        />
+      </label>
+      <div
+        class="resource-guide-status"
+        data-resource-guide-status
+        hidden={!!categories}
+      >
+        <p class="filter-status muted" role="status">
+          {entries.length} {entryLabel}
+        </p>
+        <button type="button" class="text-button" data-directory-reset hidden>
+          {categories ? 'Back to categories' : 'Clear search'}
+        </button>
+      </div>
+    </>
+  )}
+  {categories && (
+    <div data-resource-category-grid>
+      {cardGroups.map((group) => (
+        <>
+          {group.heading && (
+            <h2 class="collection-card-heading">{group.heading}</h2>
+          )}
+          <nav
+            class:list={[
+              'resource-category-grid',
+              {
+                'collection-card-grid': !!group.columns,
+                'collection-card-grid-titled': !!group.heading,
+              },
+            ]}
+            aria-label={group.label}
+            data-card-columns={group.columns}
+            style={
+              group.columns
+                ? `--card-columns:${group.columns};--card-columns-medium:${Math.min(group.columns, 2)}`
+                : undefined
+            }
+          >
+            {group.cards.map((category) => (
+              <a
+                class="resource-category-card"
+                href={url(category.href)}
+                target={
+                  category.href.startsWith('https://') ? '_blank' : undefined
+                }
+                rel={
+                  category.href.startsWith('https://')
+                    ? 'noopener noreferrer'
+                    : undefined
+                }
+              >
+                <span class="resource-category-icon">
+                  <ResourceIcon name={category.icon} />
+                </span>
+                <span class="resource-category-copy">
+                  <h2>{category.title}</h2>
+                  <p>{category.description}</p>
+                </span>
+                <Icon name="arrow" size={20} />
+              </a>
+            ))}
+          </nav>
+        </>
+      ))}
+    </div>
+  )}
+  <CollectionRows entries={entries} hidden={!!categories} label={label} />
+  {searchable && (
+    <div class="empty-state resource-guide-empty" hidden>
+      <h2>No matching {entryLabel}</h2>
+      <p>Try another title, topic or combat style.</p>
+      <button type="button" class="text-button" data-directory-reset>
+        {categories ? 'Back to categories' : 'Clear search'}
+      </button>
+    </div>
+  )}
+</section>
+<script src="../scripts/directory.ts" />
+<script src="../scripts/resource-guide-browser.ts" />

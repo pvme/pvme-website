@@ -1,0 +1,19 @@
+---
+import { url } from '../lib/catalogue';
+const { items = [] } = Astro.props;
+const isHub = items.length > 1;
+---
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  {!isHub && <a href={url('/')}>Home</a>}
+  {items.map((i: { label: string; href?: string }, index: number) => (
+    <>
+      {(!isHub || index > 0) && <span aria-hidden="true">›</span>}
+      {i.href ? (
+        <a href={url(i.href)}>{i.label}</a>
+      ) : (
+        <span aria-current="page">{i.label}</span>
+      )}
+    </>
+  ))}
+</nav>

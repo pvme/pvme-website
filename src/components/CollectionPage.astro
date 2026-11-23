@@ -1,0 +1,51 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import ResourceIcon from './ResourceIcon.astro';
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import { url } from '../lib/catalogue';
+import '../styles/resource-guides.css';
+const { title, description, icon, parent, artwork } = Astro.props as {
+  title: string;
+  description: string;
+  icon: string;
+  parent: { label: string; href: string };
+  artwork?: ImageMetadata;
+};
+const breadcrumbs = [
+  ...(parent.href === '/' ? [] : [{ label: 'Home', href: '/' }]),
+  parent,
+  { label: title },
+];
+---
+
+<Layout title={title} activePath={parent.href} breadcrumbs={breadcrumbs}>
+  <div class="page resource-category-page collection-page">
+    <Breadcrumbs items={breadcrumbs} />
+    <header class="resource-category-heading">
+      <span class="resource-category-icon">
+        {artwork ? (
+          <Image
+            class="collection-heading-art"
+            src={artwork}
+            width={192}
+            format="webp"
+            quality={85}
+            alt=""
+          />
+        ) : (
+          <ResourceIcon name={icon} size={52} />
+        )}
+      </span>
+      <div>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+    </header>
+    <slot />
+    <a class="resource-category-back" href={url(parent.href)}>
+      ← Back to {parent.label}
+    </a>
+  </div>
+</Layout>

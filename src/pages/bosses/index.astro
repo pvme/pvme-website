@@ -1,0 +1,20 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+import Directory from '../../components/Directory.astro';
+import { getCatalogue } from '../../lib/catalogue';
+import { websiteCollections, withCollectionHubs } from '../../lib/collections';
+const catalogue = getCatalogue();
+const bosses = withCollectionHubs(
+  catalogue.bosses,
+  websiteCollections(catalogue),
+  '/bosses/',
+);
+---
+
+<LandingLayout
+  title="Bosses"
+  heading="Boss guides"
+  description="From learner guides to advanced strategies and rotations"
+>
+  <Directory hubs={bosses} label="bosses" filters />
+</LandingLayout>

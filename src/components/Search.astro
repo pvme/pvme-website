@@ -1,0 +1,45 @@
+---
+import { url } from '../lib/catalogue';
+import Icon from './Icon.astro';
+const { prominent = false, compact = false } = Astro.props;
+const resultId = compact ? 'site-search-results' : 'page-search-results';
+---
+
+<div
+  class:list={['search', { prominent, compact }]}
+  data-search
+  data-index={url('/search-index.json')}
+>
+  <label>
+    <Icon name="search" size={compact ? 16 : 22} />
+    <input
+      type="search"
+      placeholder={compact ? 'Search PvME…' : 'Find a boss, guide or topic…'}
+      aria-label={compact ? 'Search PvME' : 'Search all guides and references'}
+      autocomplete="off"
+      role="combobox"
+      aria-autocomplete="list"
+      aria-expanded="false"
+      aria-controls={resultId}
+    />
+    <button
+      type="button"
+      data-search-clear
+      class="search-clear"
+      aria-label="Clear search"
+      hidden
+    >
+      ×
+    </button>
+    <kbd>{compact ? 'Ctrl K' : '/'}</kbd>
+  </label>
+  <div
+    id={resultId}
+    class="search-results"
+    role="listbox"
+    aria-label="Matching guides"
+    aria-live="polite"
+    hidden
+  ></div>
+</div>
+<script src="../scripts/search.ts" />

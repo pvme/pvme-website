@@ -1,0 +1,22 @@
+---
+import type { Guide } from '../lib/catalogue';
+import Icon from './Icon.astro';
+const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
+---
+
+<div
+  class="guide-actions"
+  data-guide-actions
+  data-guide-path={guide.path}
+  data-guide-title={guide.title}
+>
+  <button
+    type="button"
+    class="guide-suggest"
+    data-suggest-improvement
+    aria-haspopup="dialog"
+    aria-controls="suggestion-dialog"
+  >
+    <Icon name="suggest" size={18} /> Suggest improvement
+  </button>
+</div>

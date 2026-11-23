@@ -1,0 +1,76 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import GuideRenderer from './GuideRenderer.astro';
+import EditGuideLink from './EditGuideLink.astro';
+import BossLinks from './BossLinks.astro';
+import CombatText from './CombatText.astro';
+import { getCatalogue, type Guide } from '../lib/catalogue';
+import { websiteCollections } from '../lib/collections';
+const { guide } = Astro.props as { guide: Guide };
+const catalogue = getCatalogue();
+const collection = websiteCollections(catalogue).find(
+  (collection) =>
+    guide.href.startsWith(collection.href) &&
+    guide.href.endsWith(`/${guide.slug}/`),
+);
+const hub = [...catalogue.bosses, ...catalogue.slayer].find((hub) =>
+  hub.guides.some((member) => member.id === guide.id),
+);
+const section = collection
+  ? collection.parent
+  : guide.types.includes('upgrade-order')
+    ? { label: 'Upgrade Orders', href: '/resources/upgrade-orders/' }
+    : hub
+      ? {
+          label: hub.href.startsWith('/slayer/') ? 'Slayer' : 'Bosses',
+          href: hub.href.startsWith('/slayer/') ? '/slayer/' : '/bosses/',
+        }
+      : { label: 'Resources', href: '/resources/' };
+const breadcrumbs = [
+  ...(guide.types.includes('upgrade-order')
+    ? [{ label: 'Resources', href: '/resources/' }]
+    : []),
+  section,
+  ...(collection
+    ? [{ label: collection.title, href: collection.href }]
+    : hub
+      ? [{ label: hub.name, href: hub.href }]
+      : []),
+  { label: guide.title },
+];
+---
+
+<Layout
+  title={guide.title}
+  activePath={
+    guide.types.includes('upgrade-order') ? '/resources/' : section.href
+  }
+  sourcePath={guide.path}
+  actionGuide={guide}
+  breadcrumbs={breadcrumbs}
+>
+  <div class="page">
+    <Breadcrumbs items={breadcrumbs} />
+    <header class="page-heading guide-page-heading">
+      <div class="guide-heading-copy">
+        <span class="eyebrow">{guide.category}</span>
+        <div class="guide-title-row">
+          <h1>
+            <CombatText text={guide.title} />
+          </h1>
+          <EditGuideLink guide={guide} />
+        </div>
+        {guide.styles.length > 0 && (
+          <p>
+            <CombatText text={guide.styles.join(' · ')} />
+          </p>
+        )}
+      </div>
+    </header>
+    <BossLinks
+      bosses={guide.containedBosses ? hub?.containedBosses : undefined}
+    />
+    <GuideRenderer guide={guide} />
+  </div>
+</Layout>

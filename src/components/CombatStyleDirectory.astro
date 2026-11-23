@@ -1,0 +1,130 @@
+---
+import Breadcrumbs from './Breadcrumbs.astro';
+import Icon from './Icon.astro';
+import ResourceIcon from './ResourceIcon.astro';
+import { url } from '../lib/catalogue';
+import type { StyleDirectory } from '../lib/combat-style-directory';
+import '../styles/combat-style-directory.css';
+const { directories, selectedStyle } = Astro.props as {
+  directories: StyleDirectory[];
+  selectedStyle?: string;
+};
+const selected = directories.find(
+  (directory) => directory.style === selectedStyle,
+);
+const groups = [
+  ...new Map(
+    directories.flatMap((directory) =>
+      directory.groups.map((group) => [group.id, group.title] as const),
+    ),
+  ).entries(),
+];
+---
+
+<div
+  class="page combat-style-directory"
+  data-combat-style-directory
+  hidden={!selected}
+>
+  <div class="style-directory-breadcrumbs">
+    <Breadcrumbs
+      items={[
+        { label: 'Home', href: '/' },
+        { label: 'Resources', href: '/resources/' },
+        { label: selectedStyle || 'Combat style' },
+      ]}
+    />
+  </div>
+  <header class="style-directory-heading">
+    <span class="style-directory-icon">
+      <img
+        data-style-directory-icon
+        src={url(
+          `/icons/styles/${(selectedStyle || 'Necromancy').toLowerCase()}.png`,
+        )}
+        width="54"
+        height="54"
+        alt=""
+      />
+    </span>
+    <div>
+      <h1 data-style-directory-title>{selectedStyle || 'Combat style'}</h1>
+      <p data-style-directory-summary>
+        {selected &&
+          `${selected.count} guides covering bosses, Slayer, AFK methods and combat progression`}
+      </p>
+    </div>
+  </header>
+  <label class="style-directory-search">
+    <Icon name="search" size={25} />
+    <input
+      type="search"
+      data-style-directory-query
+      placeholder={`Find a ${selectedStyle} guide…`}
+      aria-label={`Search ${selectedStyle} guides`}
+    />
+  </label>
+  <nav class="style-directory-filters" aria-label="Guide categories">
+    <button type="button" data-style-directory-category="" aria-pressed="true">
+      All guides
+    </button>
+    {groups.map(([id, title]) => (
+      <button
+        type="button"
+        data-style-directory-category={id}
+        aria-pressed="false"
+      >
+        {title}
+      </button>
+    ))}
+  </nav>
+  <div class="style-directory-status" data-style-directory-status hidden>
+    <p role="status" data-style-directory-count></p>
+    <button class="text-button" type="button" data-style-directory-reset>
+      Clear search and filters
+    </button>
+  </div>
+  {directories.map((directory) => (
+    <div
+      data-style-directory-panel={directory.style}
+      data-guide-count={directory.count}
+      hidden={directory.style !== selectedStyle}
+    >
+      {directory.groups.map((group) => (
+        <section
+          class="style-directory-section"
+          data-style-directory-group={group.id}
+        >
+          <h2 id={`style-${directory.style.toLowerCase()}-${group.id}`}>
+            {group.title}
+          </h2>
+          <div class="style-directory-links">
+            {group.entries.map((entry) => (
+              <a
+                href={url(entry.href)}
+                data-style-directory-entry={entry.id}
+                data-style-directory-terms={entry.terms}
+                data-style-directory-source-category={entry.category}
+              >
+                <ResourceIcon name="document" size={23} />
+                <span>{entry.title}</span>
+                <Icon name="arrow" size={18} />
+              </a>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  ))}
+  <div class="style-directory-empty" data-style-directory-empty hidden>
+    <h2>No matching guides</h2>
+    <p>Try another title, boss or category.</p>
+    <button type="button" class="text-button" data-style-directory-reset>
+      Clear search and filters
+    </button>
+  </div>
+  <a class="style-directory-all" href={url('/resources/')}>
+    Browse Resources →
+  </a>
+</div>
+<script src="../scripts/combat-style-directory.ts" />

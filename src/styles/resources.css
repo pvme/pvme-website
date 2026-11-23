@@ -1,0 +1,225 @@
+.resource-tab-bar {
+  position: relative;
+  display: flow-root;
+  width: fit-content;
+}
+.reference-callout {
+  display: none;
+  pointer-events: none;
+}
+@media (min-width: 1280px) {
+  .reference-callout {
+    display: block;
+    position: absolute;
+    left: calc(100% + 12px);
+    top: -25px;
+    width: 290px;
+    max-width: none;
+    height: auto;
+  }
+}
+.resource-tabs {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  padding: 4px;
+  margin: 0 0 28px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.resource-tabs a {
+  padding: 8px 20px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.resource-tabs a[aria-selected='true'] {
+  color: #fff;
+  background: #2867ba;
+}
+.resources-page [hidden] {
+  display: none !important;
+}
+.reference-library {
+  display: grid;
+  grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+  min-height: 540px;
+}
+.reference-browser {
+  position: sticky;
+  top: 90px;
+  align-self: start;
+  padding: 22px 20px 20px 0;
+}
+.reference-search-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.reference-search-field {
+  position: relative;
+}
+.reference-search-field input {
+  padding: 10px 34px 10px 12px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  min-width: 0;
+}
+.reference-search-field input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+.reference-search-field button {
+  position: absolute;
+  right: 4px;
+  top: 3px;
+  padding: 5px 9px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.reference-count {
+  font-size: 13px;
+  margin: 10px 0;
+}
+.reference-topics {
+  max-height: min(640px, calc(100dvh - 260px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 3px 8px 3px 3px;
+  margin-left: -3px;
+}
+.reference-topics a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 5px;
+  color: #c0cedf;
+  line-height: 1.4;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.reference-topics a:hover {
+  background: #1d2c40;
+  color: #fff;
+}
+.reference-topics a[aria-current='true'] {
+  background: #1f3b60;
+  color: #cfe5ff;
+  box-shadow: inset 3px 0 #6eaeff;
+}
+.reference-viewer {
+  min-width: 0;
+  padding: 25px 0 36px 36px;
+  border-left: 1px solid var(--border);
+}
+.reference-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.reference-heading h2 {
+  margin: 0;
+  font-size: clamp(23px, 2.5vw, 31px);
+  line-height: 1.3;
+}
+.reference-copy {
+  white-space: nowrap;
+  color: #c7dfff;
+  background: #1b2a40;
+  border: 1px solid #355175;
+  border-radius: 6px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.reference-content {
+  max-width: 800px;
+}
+.reference-content .guide-embed {
+  border: 0;
+  padding: 0;
+  margin: 0 0 24px;
+  background: transparent;
+  border-radius: 0;
+}
+.reference-content .guide-embed > div {
+  margin: 0 0 25px;
+}
+.reference-content h3 {
+  font-size: 18px;
+  margin: 22px 0 10px;
+  color: #e0ebfa;
+}
+.reference-content h3 p {
+  margin: 0;
+}
+.reference-content p {
+  margin: 0 0 14px;
+}
+.reference-content .guide-cover {
+  display: block !important;
+}
+.reference-content img.guide-image {
+  max-width: 100%;
+  height: auto;
+}
+.reference-notice {
+  padding: 10px 14px;
+  border-left: 2px solid #7293b8;
+  font-size: 13px;
+  background: #182233;
+}
+.reference-source {
+  display: inline-block;
+  margin-top: 24px;
+  font-size: 13px;
+}
+.reference-back {
+  display: none;
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) {
+  .reference-library {
+    display: block;
+    min-height: 380px;
+  }
+  .reference-browser {
+    position: static;
+    padding: 20px 0;
+  }
+  .reference-topics {
+    max-height: 65dvh;
+  }
+  .reference-viewer {
+    display: none;
+    border-left: 0;
+    padding: 22px 0;
+  }
+  .reference-library[data-reading='true'] .reference-browser {
+    display: none;
+  }
+  .reference-library[data-reading='true'] .reference-viewer {
+    display: block;
+  }
+  .reference-back {
+    display: inline-block;
+  }
+  .reference-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .resource-tabs {
+    margin-bottom: 20px;
+  }
+  .resource-tabs a {
+    padding: 8px 15px;
+  }
+}

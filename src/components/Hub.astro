@@ -1,0 +1,267 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import Layout from '../layouts/Layout.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import GuideRenderer from './GuideRenderer.astro';
+import Icon from './Icon.astro';
+import BossLinks from './BossLinks.astro';
+import EditGuideLink from './EditGuideLink.astro';
+import { guideEditorHref } from '../lib/guide-editor';
+import { findHeaderArtwork } from '../lib/header-artwork';
+import { getCatalogue, url, type Hub } from '../lib/catalogue';
+import { getRendered } from '../lib/renderer';
+import {
+  tabChoices,
+  hubGuideTypes,
+  hubBreadcrumbTitle,
+  hubChoiceHref,
+} from '../lib/hub-menu';
+import { navigationSettings } from '../../catalogue/src/navigation-definitions';
+import '../styles/hub-menu.css';
+const { hub, kind = 'bosses' } = Astro.props as {
+  hub: Hub;
+  kind?: 'bosses' | 'slayer';
+};
+const artwork = import.meta.glob<ImageMetadata>(
+  '../assets/{bosses,slayer}/*.{webp,avif,png,jpg,jpeg}',
+  { eager: true, import: 'default' },
+);
+const localArtwork = findHeaderArtwork(artwork, kind, hub.slug);
+const tabDefinitions =
+  kind === 'slayer'
+    ? navigationSettings.slayerTabs
+    : navigationSettings.bossTabs;
+const definitions = tabDefinitions.map((tab) => [tab.id, tab.label]);
+const tabs = definitions.filter(([type]) =>
+  hub.guides.some((g) => hubGuideTypes(g).includes(type)),
+);
+const entries = hub.guides.filter((g) =>
+  tabs.some(([type]) => hubGuideTypes(g).includes(type)),
+);
+const model = entries.map((g) => ({
+  ...g,
+  rendered: getRendered(g, getCatalogue().root),
+}));
+const menuGuides = model.map(({ rendered, ...g }) => ({
+  ...g,
+  navigation: rendered.methods,
+}));
+const menus = tabs.map(([type, label]) => ({
+  type,
+  label,
+  choices: tabChoices(menuGuides, type, hub.name),
+}));
+const heroImage = [...model]
+  .sort(
+    (a, b) =>
+      Number(
+        hubGuideTypes(b).includes(navigationSettings.overview?.tab || ''),
+      ) -
+      Number(hubGuideTypes(a).includes(navigationSettings.overview?.tab || '')),
+  )
+  .find((g) => g.rendered.image)?.rendered.image;
+const defaultGuide =
+  entries.find((guide) => guide.id === menus[0]?.choices[0]?.guideId) ||
+  entries[0];
+const breadcrumbTitle = defaultGuide
+  ? hubBreadcrumbTitle(hub.name, defaultGuide.title, menus[0]?.type || '')
+  : hub.name;
+const related = hub.guides.filter((g) =>
+  g.types.includes('combat-achievement'),
+);
+const tabIcons = Object.fromEntries(
+  tabDefinitions.map((tab) => [tab.id, tab.icon]),
+);
+---
+
+<Layout
+  title={hub.name}
+  sourcePath={model[0]?.path}
+  actionGuide={defaultGuide}
+  breadcrumbs={[
+    { label: kind === 'bosses' ? 'Bosses' : 'Slayer', href: `/${kind}/` },
+    { label: breadcrumbTitle },
+  ]}
+>
+  <div class="page hub-page">
+    <Breadcrumbs
+      items={[
+        { label: kind === 'bosses' ? 'Bosses' : 'Slayer', href: `/${kind}/` },
+        { label: breadcrumbTitle },
+      ]}
+    />
+    <header class="page-heading hub-heading guide-page-heading">
+      <div class="guide-heading-copy">
+        <div class="guide-title-row">
+          <h1>{hub.name}</h1>
+          {defaultGuide && <EditGuideLink guide={defaultGuide} />}
+        </div>
+        <p>
+          All PvME resources for this{' '}
+          {hub.containedBosses?.length
+            ? 'dungeon'
+            : kind === 'bosses'
+              ? 'encounter'
+              : 'Slayer assignment'}
+        </p>
+      </div>
+    </header>
+    <BossLinks bosses={hub.containedBosses} />
+    <div
+      data-hub
+      data-subject={hub.name}
+      data-style-icon-base={url('/icons/styles/')}
+    >
+      <nav class="hub-tabs" aria-label="Guide categories">
+        {localArtwork ? (
+          <Image
+            class="hub-art"
+            src={localArtwork}
+            alt=""
+            format="webp"
+            quality={90}
+            decoding="async"
+          />
+        ) : (
+          heroImage && (
+            <img class="hub-art" src={heroImage} alt="" decoding="async" />
+          )
+        )}
+        {menus.map(({ type, label, choices }) => {
+          const dropdown =
+            choices.length > 1 ||
+            !!tabDefinitions.find((tab) => tab.id === type)?.dropdown;
+          return (
+            <div class="hub-tab-item">
+              <a
+                data-tab={type}
+                href={`?tab=${type}`}
+                aria-haspopup={dropdown ? 'menu' : undefined}
+                aria-expanded={dropdown ? 'false' : undefined}
+                aria-controls={dropdown ? `menu-${type}` : undefined}
+              >
+                <Icon name={tabIcons[type]} />
+                {label}
+                {tabDefinitions.find((tab) => tab.id === type)?.showStyles &&
+                  !dropdown && (
+                    <span
+                      class="tab-style-icons"
+                      aria-label={`Styles: ${choices[0]?.styles.filter((style) => style !== 'Hybrid').join(', ')}`}
+                    >
+                      {choices[0]?.styles
+                        .filter((style) => style !== 'Hybrid')
+                        .map((style) => (
+                          <Icon name={style.toLowerCase()} size={18} />
+                        ))}
+                    </span>
+                  )}
+                {dropdown && (
+                  <svg
+                    class="tab-chevron"
+                    aria-hidden="true"
+                    width="10"
+                    height="7"
+                    viewBox="0 0 10 7"
+                  >
+                    <path d="M0 0h10L5 7z" fill="currentColor" />
+                  </svg>
+                )}
+              </a>
+              {dropdown && (
+                <div
+                  class="hub-menu"
+                  id={`menu-${type}`}
+                  data-menu={type}
+                  hidden
+                >
+                  {choices.length > 10 && (
+                    <input
+                      class="menu-search"
+                      type="search"
+                      placeholder="Find a guide or method…"
+                      aria-label={`Search ${label}`}
+                    />
+                  )}
+                  <div class="hub-menu-list" role="menu" aria-label={label}>
+                    {choices.map((choice) => (
+                      <a
+                        href={url(
+                          hubChoiceHref(
+                            hub.href,
+                            type,
+                            choice,
+                            menus[0].type,
+                            menus[0].choices[0].guideId,
+                          ),
+                        )}
+                        role="menuitemradio"
+                        tabindex="-1"
+                        aria-checked="false"
+                        data-choice={choice.id}
+                        data-choice-tab={type}
+                      >
+                        {tabDefinitions.find((tab) => tab.id === type)
+                          ?.showStyles !== false && (
+                          <span class="menu-style-icons" aria-hidden="true">
+                            {choice.styles
+                              .filter((s) => s !== 'Hybrid')
+                              .map((style) => (
+                                <Icon name={style.toLowerCase()} />
+                              ))}
+                            {!choice.styles.length && (
+                              <Icon name={tabIcons[type]} />
+                            )}
+                          </span>
+                        )}
+                        <span class="menu-choice-label" title={choice.label}>
+                          {choice.label}
+                        </span>
+                        <span class="menu-tick" aria-hidden="true">
+                          ✓
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                  <p class="menu-empty" hidden>
+                    No matching guides.
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+      <p class="reader-status" data-reader-status aria-live="polite" hidden></p>
+      {entries.map((guide) => (
+        <section
+          data-guide-panel={guide.id}
+          data-source-url={`https://github.com/pvme/pvme-guides/blob/master/${guide.path}`}
+          data-editor-url={guideEditorHref(guide)}
+          data-guide-title={guide.title}
+          data-guide-path={guide.path}
+        >
+          <h2 class="source-title">{guide.title}</h2>
+          <GuideRenderer guide={guide} />
+        </section>
+      ))}
+      {!entries.length && !hub.containedBosses?.length && (
+        <p class="empty-state">Browse the related resources below.</p>
+      )}
+      <script
+        type="application/json"
+        data-hub-model
+        set:html={JSON.stringify(menuGuides).replace(/</g, '\u003c')}
+      />
+    </div>
+    {related.length > 0 && (
+      <section class="related">
+        <h2>Combat Achievement guides</h2>
+        {related.map((g) => (
+          <a href={url(g.href)}>{g.title} ↗</a>
+        ))}
+      </section>
+    )}
+  </div>
+</Layout>
+<script src="../scripts/hub.ts" />

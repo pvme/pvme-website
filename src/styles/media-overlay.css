@@ -1,0 +1,110 @@
+.media-overlay {
+  --media-overlay-gutter: 48px;
+  width: min(
+    1100px,
+    max(320px, calc(var(--media-natural-width, 1074px) + 26px)),
+    calc(100vw - var(--media-overlay-gutter))
+  );
+  max-width: none;
+  max-height: calc(100dvh - var(--media-overlay-gutter));
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #0f1e32;
+  color: #dce7f6;
+}
+.media-overlay::backdrop {
+  background: #030912cc;
+  backdrop-filter: blur(6px);
+}
+.media-overlay-panel {
+  border: 1px solid #3c526d;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.media-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px 8px 18px;
+  border-bottom: 1px solid #2b405b;
+}
+.media-overlay-header h2 {
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-overlay-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+}
+.media-overlay-actions a {
+  color: #9bc5f5;
+  font-size: 12px;
+}
+.media-overlay-actions button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #405777;
+  border-radius: 7px;
+  background: #1b304a;
+  color: #e1ebf9;
+  font-size: 26px;
+  cursor: pointer;
+}
+.media-overlay-actions button:hover {
+  background: #2a4565;
+}
+.media-overlay-stage {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 12px;
+  background: #080f1b;
+}
+.media-overlay-stage img,
+.media-overlay-stage video {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 150px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.media-overlay-status {
+  padding: 12px 18px;
+  margin: 0;
+  font-size: 13px;
+  color: #c1cfe2;
+}
+.media-overlay-stage iframe {
+  display: block;
+  width: min(100%, calc((100dvh - 170px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+@media (max-width: 760px) {
+  .media-overlay {
+    --media-overlay-gutter: 24px;
+  }
+  .media-overlay-header {
+    padding-left: 12px;
+    gap: 8px;
+  }
+  .media-overlay-header h2 {
+    font-size: 14px;
+  }
+  .media-overlay-actions {
+    gap: 8px;
+  }
+  .media-overlay-stage {
+    padding: 6px;
+  }
+}

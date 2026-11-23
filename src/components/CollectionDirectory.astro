@@ -1,0 +1,120 @@
+---
+import CollectionPage from './CollectionPage.astro';
+import ResourceGuideBrowser from './ResourceGuideBrowser.astro';
+import Icon from './Icon.astro';
+import { combatStyleNames } from '../lib/combat-styles';
+import { url } from '../lib/catalogue';
+import type { WebsiteCollection } from '../lib/collections';
+import type { ImageMetadata } from 'astro';
+import { resourceGuideTitle } from '../lib/resource-guides';
+const { collection } = Astro.props as { collection: WebsiteCollection };
+const images = import.meta.glob<ImageMetadata>(
+  '../assets/{bosses,slayer}/*.{webp,avif,png,jpg,jpeg}',
+  { eager: true, import: 'default' },
+);
+const artwork = Object.entries(images).find(
+  ([path]) =>
+    path.startsWith('../assets' + collection.parent.href) &&
+    path.split('/').at(-1)?.split('.')[0] === collection.id,
+)?.[1];
+const styleOrders = collection.featuredStyles
+  ? combatStyleNames.flatMap((style) => {
+      const guide = collection.guides.find(
+        (guide) =>
+          guide.types.includes('upgrade-order') &&
+          guide.styles.length === 1 &&
+          guide.styles[0] === style,
+      );
+      return guide ? [{ style, guide }] : [];
+    })
+  : [];
+const featuredIds = new Set(styleOrders.map(({ guide }) => guide.id));
+const remainingGuides = collection.guides.filter(
+  (guide) => !featuredIds.has(guide.id),
+);
+const searchEntries = [
+  ...collection.members,
+  ...remainingGuides.map((guide) => ({
+    id: guide.id,
+    title: resourceGuideTitle(guide.title),
+    href: guide.href,
+    styles: guide.styles,
+    terms: [guide.title, ...guide.aliases, ...guide.styles, guide.category]
+      .join(' ')
+      .toLowerCase(),
+  })),
+];
+const mixedSearch = collection.searchable && collection.members.length > 0;
+---
+
+<CollectionPage
+  title={collection.title}
+  description={collection.description}
+  icon={collection.icon}
+  parent={collection.parent}
+  artwork={artwork}
+>
+  {collection.members.length > 0 && (
+    <ResourceGuideBrowser
+      entries={mixedSearch ? searchEntries : collection.members}
+      label="Collection members"
+      searchable={collection.searchable}
+      categoryTitle={collection.title}
+      categories={
+        collection.parent.href === '/bosses/' && !remainingGuides.length
+          ? collection.members.map((member) => ({
+              id: member.id,
+              title: member.title,
+              href: member.href,
+              icon: member.icon || 'document',
+              description: member.subtitle || '',
+              guides: [],
+            }))
+          : undefined
+      }
+    />
+  )}
+  {styleOrders.length > 0 && (
+    <>
+      <nav
+        class="resource-category-grid upgrade-style-grid"
+        aria-label="Combat style upgrade orders"
+      >
+        {styleOrders.map(({ style, guide }) => (
+          <a
+            class="resource-category-card"
+            href={url(guide.href)}
+            data-upgrade-style={style}
+          >
+            <span class="resource-category-icon">
+              <Icon name={style.toLowerCase()} size={36} />
+            </span>
+            <span class="resource-category-copy">
+              <h2>{style}</h2>
+              <p>Gear, unlocks and progression</p>
+            </span>
+            <Icon name="arrow" size={20} />
+          </a>
+        ))}
+      </nav>
+      <h2 class="upgrade-support-heading">More upgrade guides</h2>
+    </>
+  )}
+  <section
+    class:list={{
+      'collection-shared-guides':
+        collection.members.length > 0 && remainingGuides.length > 0,
+    }}
+  >
+    {!mixedSearch &&
+      collection.members.length > 0 &&
+      remainingGuides.length > 0 && <h2>Shared guides</h2>}
+    {!mixedSearch && remainingGuides.length > 0 && (
+      <ResourceGuideBrowser
+        guides={remainingGuides}
+        categoryTitle={collection.title}
+        searchable={!!collection.searchable && !collection.members.length}
+      />
+    )}
+  </section>
+</CollectionPage>

@@ -1,0 +1,23 @@
+---
+import { combatTextParts } from '../lib/combat-styles';
+import { url } from '../lib/catalogue';
+const { text } = Astro.props as { text: string };
+---
+
+{combatTextParts(text).map((part) =>
+  part.file ? (
+    <span class="combat-label">
+      <img
+        class="combat-style-icon"
+        src={url(`/icons/styles/${part.file}`)}
+        width="22"
+        height="22"
+        alt=""
+        aria-hidden="true"
+      />
+      {part.text}
+    </span>
+  ) : (
+    part.text
+  ),
+)}

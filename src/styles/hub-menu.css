@@ -1,0 +1,233 @@
+.hub-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+  position: relative;
+  z-index: 12;
+  margin-right: 277px;
+  isolation: isolate;
+}
+.hub-tabs > .hub-art {
+  --hub-art-drop: 44px;
+  top: auto;
+  right: 0;
+  bottom: calc(-1 * var(--hub-art-drop));
+  width: min(80%, 649px);
+  height: 292px;
+  max-width: 100%;
+  max-height: 292px;
+  clip-path: inset(0 0 var(--hub-art-drop) 0);
+  object-fit: contain;
+  object-position: right bottom;
+  opacity: 0.28;
+  pointer-events: none;
+}
+.tab-style-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hub-page > .breadcrumbs,
+.hub-page > .hub-heading,
+.hub-page > section[aria-label='Bosses in this dungeon'] {
+  position: relative;
+  z-index: 13;
+}
+.hub-tab-item {
+  position: relative;
+  flex-shrink: 0;
+}
+.hub-tabs [data-tab] {
+  height: 100%;
+}
+.tab-chevron {
+  flex: 0 0 auto;
+  margin-left: 3px;
+  opacity: 0.8;
+  transition: transform 150ms ease;
+}
+[aria-expanded='true'] .tab-chevron {
+  transform: rotate(180deg);
+}
+
+.hub-tabs [aria-expanded='true'] {
+  background: #1d334f;
+  color: #edf5ff;
+}
+.hub-menu {
+  transform: translateX(var(--menu-offset, 0px));
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 0;
+  width: max-content;
+  min-width: 310px;
+  max-width: min(600px, calc(100vw - 290px));
+  padding: 9px;
+  background: linear-gradient(145deg, #152941, #0d1d31);
+  border: 1px solid #6c9cc5;
+  border-radius: 12px;
+  box-shadow:
+    0 20px 45px #0006,
+    0 0 0 3px #07152580;
+  z-index: 40;
+}
+.hub-menu::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 10px;
+}
+.hub-menu:before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: calc(75px - var(--menu-offset, 0px));
+  width: 10px;
+  height: 10px;
+  background: #152941;
+  border-left: 1px solid #6c9cc5;
+  border-top: 1px solid #6c9cc5;
+  transform: rotate(45deg);
+}
+.hub-menu-list {
+  max-height: 360px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.menu-choice-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+.hub-menu [data-choice] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-decoration: none;
+  gap: 13px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #e1eafa;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.menu-choice-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.menu-style-icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 32px;
+  flex-shrink: 0;
+}
+.menu-style-icons img,
+.menu-style-icons svg {
+  width: 24px;
+  height: 24px;
+}
+.menu-style-icons:has(img + img) img {
+  width: 20px;
+  height: 20px;
+}
+.menu-tick {
+  visibility: hidden;
+  color: #85c9ff;
+  font-size: 22px;
+  line-height: 1;
+  width: 21px;
+  flex-shrink: 0;
+}
+.hub-menu [data-choice][aria-checked='true'] {
+  background: #203e5c;
+  border-color: #679bc6;
+  box-shadow: inset 0 0 0 1px #314f70;
+}
+.hub-menu [data-choice][aria-checked='true'] .menu-tick {
+  visibility: visible;
+}
+.hub-menu [data-choice]:hover,
+.hub-menu [data-choice]:focus-visible {
+  background: #243c57;
+  border-color: #507597;
+  outline-offset: -2px;
+}
+.menu-search {
+  width: 100%;
+  font-size: 14px;
+  margin-bottom: 8px;
+  padding: 9px 11px;
+  background: #102137;
+  border-color: #3c5b7b;
+}
+.menu-empty {
+  font-size: 14px;
+  color: #b6c8dd;
+  margin: 10px;
+}
+.reader-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  margin: 0;
+}
+
+@media (max-width: 1000px) {
+  .hub-tabs {
+    margin-right: 0;
+  }
+  .hub-menu {
+    max-width: calc(100vw - 280px);
+    min-width: 250px;
+  }
+}
+@media (max-width: 760px) {
+  .hub-tabs > .hub-art {
+    width: min(80%, 454px);
+    height: 227px;
+    max-height: 227px;
+  }
+  .hub-tabs {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .hub-tabs a {
+    padding-inline: 10px;
+  }
+  .hub-tab-item {
+    position: static;
+  }
+  .hub-menu {
+    left: 0;
+    right: 0;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+  }
+  .hub-menu:before {
+    display: none;
+  }
+  .hub-menu [data-choice] {
+    font-size: 14px;
+    padding: 10px 8px;
+    gap: 9px;
+  }
+  .hub-menu-list {
+    max-height: 320px;
+  }
+}

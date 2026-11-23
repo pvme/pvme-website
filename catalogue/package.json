@@ -1,0 +1,26 @@
+{
+  "name": "pvme-guide-catalogue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "catalogue": "tsx src/cli.ts",
+    "catalogue:full": "tsx src/cli.ts --force",
+    "dev": "vite --configLoader runner --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build --configLoader runner",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@pvme/guide-parser": "^0.4.2",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.4.0"
+  }
+}

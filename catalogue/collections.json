@@ -1,0 +1,569 @@
+{
+  "schemaVersion": 1,
+  "navigation": {
+    "bossTabs": [
+      {
+        "id": "boss-overview",
+        "label": "Overview",
+        "icon": "overview",
+        "mode": "pages",
+        "breadcrumbLabel": "Overview"
+      },
+      {
+        "id": "boss-rotation",
+        "label": "Rotations",
+        "icon": "bosses",
+        "mode": "methods"
+      },
+      {
+        "id": "boss-afk",
+        "label": "AFK/Low Effort",
+        "icon": "afk",
+        "mode": "methods",
+        "showStyles": false,
+        "dropdown": true
+      },
+      {
+        "id": "boss-mechanics",
+        "label": "Specialised Mechanics",
+        "icon": "mechanics",
+        "mode": "pages"
+      }
+    ],
+    "slayerTabs": [
+      {
+        "id": "slayer",
+        "label": "Methods",
+        "icon": "slayer",
+        "mode": "methods"
+      }
+    ],
+    "overview": {
+      "tab": "boss-overview",
+      "preferredPathPrefix": "basic-guides/",
+      "preferredFilenameSuffix": "-basic.txt",
+      "hideOtherTabsFromPathPrefixes": [
+        "rs3-full-boss-guides/"
+      ]
+    },
+    "tabRules": [
+      {
+        "pathPrefix": "rs3-full-boss-guides/",
+        "onlyTypes": [
+          "boss-overview"
+        ],
+        "hasMethods": true,
+        "tabs": [
+          "boss-rotation"
+        ]
+      }
+    ],
+    "guides": {
+      "rs3-full-boss-guides/telos/p5-movement-and-timing.txt": {
+        "tabs": [
+          "boss-mechanics"
+        ]
+      },
+      "rs3-full-boss-guides/gate-of-elidinis.txt": {
+        "tabs": [
+          "boss-overview"
+        ]
+      }
+    },
+    "routes": {
+      "standaloneTypes": [
+        "combat-achievement"
+      ],
+      "collectionGuideSegment": "guides"
+    }
+  },
+  "collections": [
+    {
+      "parent": "/bosses/",
+      "subjectId": "seiryu",
+      "title": "Seiryu",
+      "icon": "bosses",
+      "description": "Seiryu guides in ED1 and Combat Achievements",
+      "members": [
+        {
+          "name": "Seiryu — Basic Guide",
+          "guidePath": "basic-guides/ed1-basic.txt",
+          "heading": "Seiryu, the Azure Serpent (Info)",
+          "description": "Jump to Seiryu in the ED1 guide"
+        },
+        {
+          "name": "Seiryu — Ranged",
+          "guidePath": "rs3-full-boss-guides/ed1-temple-of-aminishi/ed1-ranged.txt",
+          "heading": "Seiryu, the Azure Serpent"
+        },
+        {
+          "name": "Seiryu — Melee / Ranged Hybrid",
+          "guidePath": "rs3-full-boss-guides/ed1-temple-of-aminishi/ed1-melee-ranged.txt",
+          "heading": "Seiryu, the Azure Serpent"
+        },
+        {
+          "name": "Seiryu Combat Achievements",
+          "guidePath": "combat-achievements/seiryu-ca.txt"
+        }
+      ]
+    },
+    {
+      "parent": "/bosses/",
+      "subjectId": "black-stone-dragon",
+      "title": "Black Stone Dragon",
+      "icon": "bosses",
+      "description": "Black Stone Dragon guides in ED2 and Combat Achievements",
+      "members": [
+        {
+          "name": "Black Stone Dragon — Basic Guide",
+          "guidePath": "basic-guides/ed2-basic.txt",
+          "heading": "Black Stone Dragon (Info)",
+          "description": "Jump to Black Stone Dragon in the ED2 guide"
+        },
+        {
+          "name": "Black Stone Dragon — Ranged",
+          "guidePath": "rs3-full-boss-guides/ed2-dragonkin-laboratory/ed2-ranged.txt",
+          "heading": "Black Stone Dragon"
+        },
+        {
+          "name": "Black Stone Dragon — Necromancy",
+          "guidePath": "rs3-full-boss-guides/ed2-dragonkin-laboratory/ed2-necromancy.txt",
+          "heading": "Black Stone Dragon"
+        },
+        {
+          "name": "Black Stone Dragon Combat Achievements",
+          "guidePath": "combat-achievements/black-stone-dragon-ca.txt"
+        }
+      ]
+    },
+    {
+      "parent": "/bosses/",
+      "subjectId": "ambassador",
+      "title": "Ambassador",
+      "icon": "bosses",
+      "description": "Ambassador guides in ED3 and Combat Achievements",
+      "members": [
+        {
+          "name": "Ambassador — Basic Guide",
+          "guidePath": "basic-guides/ed3-basic.txt",
+          "heading": "The Ambassador",
+          "description": "Jump to the Ambassador in the ED3 guide"
+        },
+        {
+          "name": "Ambassador — Necromancy",
+          "guidePath": "rs3-full-boss-guides/ed3-shadow-reef/necromancy.txt",
+          "heading": "Kranon, the Ambassador"
+        },
+        {
+          "name": "Ambassador — Melee / Magic Hybrid",
+          "guidePath": "rs3-full-boss-guides/ed3-shadow-reef/melee-magic-hybrid.txt",
+          "heading": "The Ambassador"
+        },
+        {
+          "name": "Ambassador Combat Achievements",
+          "guidePath": "combat-achievements/ambassador-ca.txt"
+        }
+      ]
+    },
+    {
+      "subjectId": "ed1-temple-of-aminishi",
+      "title": "ED1 Temple of Aminishi",
+      "aliases": ["ED1", "Temple of Aminishi"],
+      "sourcePath": "basic-guides/ed1-basic.txt",
+      "members": [
+        { "subjectId": "seiryu", "name": "Seiryu" }
+      ],
+      "icon": "bosses",
+      "description": "Dungeon guides and bosses in the Temple of Aminishi",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "ed2-dragonkin-laboratory",
+      "title": "ED2 Dragonkin Laboratory",
+      "aliases": ["ED2", "Dragonkin Laboratory"],
+      "sourcePath": "basic-guides/ed2-basic.txt",
+      "members": [
+        { "subjectId": "black-stone-dragon", "name": "Black Stone Dragon" }
+      ],
+      "icon": "bosses",
+      "description": "Dungeon guides and bosses in the Dragonkin Laboratory",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "ed3-shadow-reef",
+      "title": "ED3 Shadow Reef",
+      "aliases": ["ED3", "Shadow Reef", "The Shadow Reef"],
+      "sourcePath": "basic-guides/ed3-basic.txt",
+      "members": [
+        { "subjectId": "ambassador", "name": "Ambassador" }
+      ],
+      "icon": "bosses",
+      "description": "Dungeon guides and bosses in the Shadow Reef",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "god-wars-dungeon-1",
+      "title": "God Wars Dungeon 1",
+      "aliases": [
+        "GWD1"
+      ],
+      "sourcePath": "afk/afk-gwd1.txt",
+      "members": [
+        {
+          "subjectId": "general-graardor",
+          "name": "General Graardor",
+          "aliases": [
+            "Graardor",
+            "Bandos"
+          ],
+          "sharedGuideTitle": "General Graardor (Normal Mode)"
+        },
+        {
+          "subjectId": "kree-arra",
+          "name": "Kree'arra",
+          "aliases": [
+            "Kree",
+            "Armadyl"
+          ],
+          "sharedGuideTitle": "Kree'arra (Normal Mode)"
+        },
+        {
+          "subjectId": "kril-tsutsaroth",
+          "name": "K'ril Tsutsaroth",
+          "aliases": [
+            "Kril",
+            "K'ril",
+            "Zamorak"
+          ],
+          "sharedGuideTitle": "K'ril Tsutsaroth (Normal Mode)"
+        },
+        {
+          "subjectId": "commander-zilyana",
+          "name": "Commander Zilyana",
+          "aliases": [
+            "Zilyana",
+            "Saradomin"
+          ],
+          "sharedGuideTitle": "Commander Zilyana (Normal Mode)"
+        },
+        {
+          "subjectId": "nex",
+          "name": "Nex"
+        }
+      ],
+      "icon": "bosses",
+      "description": "Guides for the bosses in God Wars Dungeon 1",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "god-wars-dungeon-2",
+      "title": "God Wars Dungeon 2",
+      "aliases": [
+        "GWD2",
+        "Heart of Gielinor",
+        "The Heart"
+      ],
+      "members": [
+        {
+          "subjectId": "vindicta",
+          "name": "Vindicta"
+        },
+        {
+          "subjectId": "helwyr",
+          "name": "Helwyr"
+        },
+        {
+          "subjectId": "gregorovic",
+          "name": "Gregorovic"
+        },
+        {
+          "subjectId": "twin-furies",
+          "name": "Twin Furies"
+        },
+        {
+          "subjectId": "telos",
+          "name": "Telos"
+        }
+      ],
+      "icon": "bosses",
+      "description": "Guides for the bosses in God Wars Dungeon 2",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "god-wars-dungeon-3",
+      "title": "God Wars Dungeon 3",
+      "aliases": [
+        "GWD3",
+        "Elder God Wars Dungeon",
+        "EGWD"
+      ],
+      "members": [
+        {
+          "subjectId": "croesus",
+          "name": "Croesus"
+        },
+        {
+          "subjectId": "arch-glacor",
+          "name": "Arch-Glacor"
+        },
+        {
+          "subjectId": "tzkal-zuk",
+          "name": "TzKal-Zuk"
+        },
+        {
+          "subjectId": "kerapac",
+          "name": "Kerapac"
+        },
+        {
+          "subjectId": "zamorak",
+          "name": "Zamorak"
+        }
+      ],
+      "icon": "bosses",
+      "description": "Guides for the bosses in God Wars Dungeon 3",
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "rex-matriarchs",
+      "title": "Rex Matriarchs",
+      "icon": "bosses",
+      "description": "Guides for the four Rex Matriarchs",
+      "aliases": [
+        "Matriarchs"
+      ],
+      "sourcePath": "rs3-full-boss-guides/rex-matriarchs/rex-matriarchs-overview.txt",
+      "members": [
+        {
+          "subjectId": "orikalka",
+          "name": "Orikalka"
+        },
+        {
+          "subjectId": "rathis",
+          "name": "Rathis"
+        },
+        {
+          "subjectId": "pthentraken",
+          "name": "Pthentraken"
+        },
+        {
+          "subjectId": "osseous",
+          "name": "Osseous"
+        }
+      ],
+      "parent": "/bosses/"
+    },
+    {
+      "subjectId": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "description": "Learn the basics, set up your account and start bossing",
+      "guideCategories": [
+        "Getting Started"
+      ],
+      "searchable": false,
+      "parent": "/resources/"
+    },
+    {
+      "subjectId": "bossing-basics",
+      "title": "Bossing Basics",
+      "icon": "bosses",
+      "description": "Core PvM skills, concepts and progression",
+      "guideCategories": [
+        "Bossing Basics"
+      ],
+      "searchable": false,
+      "parent": "/resources/"
+    },
+    {
+      "subjectId": "dpm-advice",
+      "title": "DPM Advice",
+      "icon": "chart",
+      "description": "Damage output guidance and style-specific advice",
+      "guideCategories": [
+        "DPM Advice"
+      ],
+      "searchable": false,
+      "parent": "/resources/",
+      "guideOrder": [
+        "dpm-advice/dpm-advice-faq.txt"
+      ]
+    },
+    {
+      "subjectId": "invention-perks",
+      "title": "Invention & Perks",
+      "icon": "invention",
+      "description": "Invention setup, components and recommended perks",
+      "guideCategories": [
+        "Invention & Perks"
+      ],
+      "searchable": false,
+      "parent": "/resources/"
+    },
+    {
+      "subjectId": "one-tick-guides",
+      "title": "One Tick Guides",
+      "icon": "bolt",
+      "description": "1-tick methods, rotations and advanced techniques",
+      "guideCategories": [
+        "One Tick Guides"
+      ],
+      "searchable": false,
+      "parent": "/resources/"
+    },
+    {
+      "subjectId": "upgrade-orders",
+      "title": "Upgrade Orders",
+      "icon": "upgrade",
+      "description": "Recommended unlocks, gear and long-term progression",
+      "guideCategories": [
+        "Upgrade Orders"
+      ],
+      "searchable": false,
+      "featuredStyles": true,
+      "parent": "/resources/"
+    },
+    {
+      "subjectId": "other-resources",
+      "title": "Other Resources",
+      "icon": "general",
+      "description": "More combat advice, useful tools and practical PvM information",
+      "catchAll": true,
+      "searchable": true,
+      "parent": "/resources/"
+    },
+    {
+      "parent": "/tools/",
+      "subjectId": "player-tools",
+      "title": "Player Tools",
+      "description": "Plan your setups and prepare for PvM.",
+      "icon": "general",
+      "members": [
+        {
+          "id": "damage-calculator",
+          "name": "Damage Calculator",
+          "href": "https://tools.runescape.wiki/rs-rot/",
+          "description": "Explore RS Analysis damage calculators for Magic, Melee, Ranged and Necromancy."
+        },
+        {
+          "id": "hit-chance-calculator",
+          "name": "Hit Chance Calculator",
+          "href": "https://pvme.io/hit-chance-calculator/",
+          "description": "Calculate hit chance for your equipment, buffs and target."
+        }
+      ]
+    },
+    {
+      "parent": "/tools/",
+      "subjectId": "contributor-tools",
+      "title": "Editor & Contributor Tools",
+      "description": "Create, illustrate and maintain quality content for PvME guides and Discord.",
+      "icon": "general",
+      "members": [
+        {
+          "id": "guide-editor",
+          "name": "Guide Editor",
+          "href": "https://pvme.io/guide-editor/",
+          "description": "Write and preview PvME guides using Discord formatting."
+        },
+        {
+          "id": "preset-maker",
+          "name": "Preset Maker",
+          "href": "https://presets.pvme.io/",
+          "description": "Create and share gear, inventory and familiar preset images for PvME guides."
+        },
+        {
+          "id": "rotation-builder",
+          "name": "Rotation Builder",
+          "href": "https://pvme.io/rotation-builder/",
+          "description": "Plan and share ability rotations using PvME icons."
+        },
+        {
+          "id": "ability-bar-builder",
+          "name": "Ability Bar Builder",
+          "href": "https://pvme.io/ability-bar-builder/",
+          "description": "Build ability-bar images to illustrate rotations and revolution setups."
+        },
+        {
+          "id": "tilemap-maker",
+          "name": "Tilemap Maker",
+          "href": "https://pvme.io/tilemap-maker/",
+          "description": "Illustrate player, enemy and cannon positions on a tile grid."
+        },
+        {
+          "id": "banner-builder",
+          "name": "Banner Builder",
+          "href": "https://pvme.io/banner-builder/",
+          "description": "Create PvME-themed boss banners for guide introductions."
+        },
+        {
+          "id": "forum-icon-builder",
+          "name": "Forum Icon Builder",
+          "href": "https://pvme.io/forum-icon-builder/",
+          "description": "Create matching PvME-themed icons for Discord forum channels."
+        },
+        {
+          "id": "emoji-library",
+          "name": "PvME Emoji & Icon Library",
+          "href": "https://pvme.io/pvme-settings/#emojis",
+          "description": "Find PvME icons and Discord emoji to use when writing and illustrating guides."
+        },
+        {
+          "id": "pvme-spreadsheet",
+          "name": "PvME Spreadsheet",
+          "href": "https://docs.google.com/spreadsheets/d/1OGM9MBUG2bQVbHxlm86Xfs60soFcjINSOrPv1WL3Vgw/",
+          "description": "Reference the shared prices, component costs and revenue data used in PvME guides."
+        }
+      ]
+    }
+  ],
+  "cardGroups": [
+    {
+      "parent": "/slayer/",
+      "label": "Slayer guides",
+      "heading": "Slayer guides",
+      "cards": [
+        "an-overview-of-slayer",
+        "block-and-prefer-lists",
+        "slayer-point-farming",
+        "ultimate-slayer",
+        "shattered-worlds"
+      ]
+    },
+    {
+      "parent": "/slayer/",
+      "label": "Creatures",
+      "heading": "Creatures",
+      "remaining": true
+    },
+    {
+      "parent": "/resources/",
+      "label": "Other",
+      "remaining": true,
+      "heading": "Other"
+    },
+    {
+      "parent": "/resources/",
+      "label": "Combat styles",
+      "heading": "Combat styles",
+      "cards": [
+        "style-necromancy",
+        "style-magic",
+        "style-ranged",
+        "style-melee"
+      ],
+      "columns": 4
+    },
+    {
+      "parent": "/tools/",
+      "label": "Player Tools",
+      "heading": "Player Tools",
+      "collection": "player-tools"
+    },
+    {
+      "parent": "/tools/",
+      "label": "Editor & Contributor Tools",
+      "heading": "Editor & Contributor Tools",
+      "collection": "contributor-tools"
+    }
+  ]
+}

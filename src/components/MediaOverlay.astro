@@ -1,0 +1,26 @@
+---
+import '../styles/media-overlay.css';
+---
+
+<dialog
+  class="media-overlay"
+  data-media-dialog
+  aria-labelledby="media-overlay-title"
+>
+  <div class="media-overlay-panel">
+    <header class="media-overlay-header">
+      <h2 id="media-overlay-title">Media preview</h2>
+      <div class="media-overlay-actions">
+        <a data-media-original target="_blank" rel="noopener noreferrer">
+          Open original ↗
+        </a>
+        <button type="button" data-media-close aria-label="Close media preview">
+          ×
+        </button>
+      </div>
+    </header>
+    <div class="media-overlay-stage" data-media-stage></div>
+    <p class="media-overlay-status" data-media-status role="status" hidden></p>
+  </div>
+</dialog>
+<script src="../scripts/media-overlay.ts" />

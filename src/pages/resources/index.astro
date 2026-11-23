@@ -1,0 +1,178 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+import ResourceGuideBrowser from '../../components/ResourceGuideBrowser.astro';
+import { getCatalogue, url } from '../../lib/catalogue';
+import '../../styles/resources.css';
+import '../../styles/preset-previews.css';
+import '../../styles/resource-guides.css';
+import { resourceCategories } from '../../lib/resource-guides';
+import { combatStyleLinks } from '../../lib/combat-style-directory';
+const categories = resourceCategories(getCatalogue().guides);
+const guides = [
+  ...new Map(
+    categories
+      .flatMap((category) => category.guides)
+      .map((guide) => [guide.id, guide]),
+  ).values(),
+];
+const styleLinks = combatStyleLinks(getCatalogue().guides);
+---
+
+<LandingLayout
+  title="Resources"
+  activePath="/resources/"
+  pageClass="resources-page"
+  pageAttributes={{
+    'data-resources': true,
+    'data-index': url('/reference-index.json'),
+  }}
+  description="Recommended upgrade orders, perks, unlocks, and deep dives on all things PvM"
+>
+  <div class="resource-tab-bar">
+    <nav class="resource-tabs" role="tablist" aria-label="Resources">
+      <a
+        id="resources-guides-tab"
+        role="tab"
+        href={url('/resources/')}
+        data-resource-tab="guides"
+        aria-controls="resources-guides"
+        aria-selected="true"
+      >
+        Guides
+      </a>
+      <a
+        id="resources-reference-tab"
+        role="tab"
+        href={`${url('/resources/')}?tab=reference`}
+        data-resource-tab="reference"
+        aria-controls="resources-reference"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Quick Reference
+      </a>
+    </nav>
+    <img
+      class="reference-callout"
+      src={url('/images/quick-reference-callout.webp')}
+      width="820"
+      height="231"
+      alt="Try Quick Reference for Discord commands"
+      decoding="async"
+    />
+  </div>
+  <section
+    id="resources-guides"
+    role="tabpanel"
+    aria-labelledby="resources-guides-tab"
+    data-resource-panel="guides"
+  >
+    <ResourceGuideBrowser
+      guides={guides}
+      categories={categories}
+      styleLinks={styleLinks}
+    />
+  </section>
+  <section
+    id="resources-reference"
+    role="tabpanel"
+    aria-labelledby="resources-reference-tab"
+    data-resource-panel="reference"
+    hidden
+  >
+    <div class="reference-library" data-reference-library>
+      <aside
+        class="reference-browser"
+        aria-label="Reference topics"
+        data-reference-browser
+      >
+        <label class="reference-search-label" for="reference-search">
+          Find a topic
+        </label>
+        <div class="reference-search-field">
+          <input
+            id="reference-search"
+            type="search"
+            placeholder="Search titles or abbreviations…"
+            data-reference-search
+          />
+          <button
+            type="button"
+            data-reference-clear
+            aria-label="Clear reference search"
+            hidden
+          >
+            ×
+          </button>
+        </div>
+        <p class="reference-count muted" role="status" data-reference-count></p>
+        <nav
+          class="reference-topics"
+          aria-label="Quick Reference topics"
+          data-reference-list
+        ></nav>
+        <button
+          type="button"
+          class="text-button"
+          data-reference-retry-index
+          hidden
+        >
+          Retry loading topics
+        </button>
+      </aside>
+      <article
+        class="reference-viewer"
+        data-reference-viewer
+        aria-labelledby="reference-title"
+      >
+        <button
+          type="button"
+          class="text-button reference-back"
+          data-reference-back
+        >
+          ← Back to references
+        </button>
+        <div class="reference-heading">
+          <h2 id="reference-title" tabindex="-1" data-reference-title>
+            Select a topic
+          </h2>
+          <button
+            type="button"
+            class="reference-copy"
+            data-reference-copy
+            hidden
+          >
+            Copy link
+          </button>
+        </div>
+        <p class="reference-status muted" role="status" data-reference-status>
+          Choose a topic to read its Quick Reference.
+        </p>
+        <p class="reference-notice muted" data-reference-notice hidden></p>
+        <div
+          class="guide-content reference-content"
+          data-reference-content
+        ></div>
+        <button type="button" class="text-button" data-reference-retry hidden>
+          Try again
+        </button>
+        <a
+          class="reference-source text-link"
+          data-reference-source
+          target="_blank"
+          rel="noopener noreferrer"
+          hidden
+        >
+          View original source ↗
+        </a>
+      </article>
+    </div>
+  </section>
+  <noscript>
+    <p>
+      Quick Reference uses JavaScript to load individual articles. The Guides
+      library is available above.
+    </p>
+  </noscript>
+</LandingLayout>
+<script src="../../scripts/resources.ts" />

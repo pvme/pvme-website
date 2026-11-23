@@ -1,0 +1,31 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CombatStyleDirectory from '../components/CombatStyleDirectory.astro';
+import { getCatalogue } from '../lib/catalogue';
+import { combatStyleNames } from '../lib/combat-styles';
+import { combatStyleDirectories } from '../lib/combat-style-directory';
+export function getStaticPaths() {
+  return combatStyleNames.map((style) => ({
+    params: { style: style.toLowerCase() },
+    props: { style },
+  }));
+}
+const { style } = Astro.props;
+const catalogue = getCatalogue();
+const directories = combatStyleDirectories(
+  catalogue.guides,
+  [...catalogue.bosses, ...catalogue.slayer],
+  catalogue.root,
+).filter((directory) => directory.style === style);
+---
+
+<Layout
+  title={`${style} guides`}
+  breadcrumbs={[
+    { label: 'Home', href: '/' },
+    { label: 'Resources', href: '/resources/' },
+    { label: style },
+  ]}
+>
+  <CombatStyleDirectory directories={directories} selectedStyle={style} />
+</Layout>

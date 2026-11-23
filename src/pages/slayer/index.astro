@@ -1,0 +1,25 @@
+---
+import LandingLayout from '../../layouts/LandingLayout.astro';
+import Directory from '../../components/Directory.astro';
+import { getCatalogue } from '../../lib/catalogue';
+import { websiteCollections, withCollectionHubs } from '../../lib/collections';
+const catalogue = getCatalogue();
+const slayer = withCollectionHubs(
+  catalogue.slayer,
+  websiteCollections(catalogue),
+  '/slayer/',
+);
+---
+
+<LandingLayout
+  title="Slayer"
+  heading="Slayer guides"
+  description="Methods for fighting common slayer mobs"
+>
+  <Directory
+    hubs={slayer}
+    label="Slayer guides"
+    styleFilters
+    parentPath="/slayer/"
+  />
+</LandingLayout>

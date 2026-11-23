@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "rs3-full-boss-guides/ed3-shadow-reef/necromancy.txt": {
+      "fields": {
+        "subject": "ed3 shadow reef"
+      }
+    },
+    "afk/afk-blood-reavers.txt": {
+      "types": ["slayer"],
+      "fields": {
+        "category": "Slayer"
+      }
+    },
+    "commands/afkguides.txt": {
+      "reference": {
+        "title": "AFK guides"
+      }
+    },
+    "commands/sgb.txt": {
+      "reference": {
+        "title": "Seren godbow"
+      }
+    },
+    "commands/hitchance.txt": {
+      "reference": {
+        "title": "Hit chance"
+      }
+    },
+    "commands/0tick.txt": {
+      "reference": {
+        "title": "0-ticking abilities"
+      }
+    },
+    "commands/elderovl.txt": {
+      "reference": {
+        "title": "Elder overloads"
+      }
+    },
+    "combat-achievements/vorago-ca.txt": {
+      "presets": {
+        "https://presets.pvme.io?id=4165a4ce-06f8-4dc0-880f-c38fdfa51afc": {
+          "url": "https://presets.pvme.io?id=4165a4ce-06f8-4dc0-880f-c38fdfa51afc",
+          "methods": "shared"
+        }
+      }
+    },
+    "combat-achievements/vorkath-ca.txt": {
+      "methods": {
+        "tag:meleeranged": {
+          "match": {
+            "tag": "meleeranged"
+          },
+          "styles": ["melee-ranged"]
+        },
+        "tag:magicmelee": {
+          "match": {
+            "tag": "magicmelee"
+          },
+          "styles": ["magic-melee"]
+        }
+      }
+    },
+    "rs3-full-boss-guides/angel-of-death-7s/melee-ranged-base.txt": {
+      "presets": {
+        "https://presets.pvme.io?id=4cf6321f-3e5a-4c43-a1e2-41b57333655e": {
+          "url": "https://presets.pvme.io?id=4cf6321f-3e5a-4c43-a1e2-41b57333655e",
+          "styles": ["ranged-melee"]
+        }
+      }
+    },
+    "rs3-full-boss-guides/beastmaster-durzag/duo-bm.txt": {
+      "presets": {
+        "https://presets.pvme.io/?id=0VJPdrObhSrzvPodd6zW": {
+          "url": "https://presets.pvme.io/?id=0VJPdrObhSrzvPodd6zW",
+          "methods": "shared"
+        },
+        "https://presets.pvme.io/?id=XpeodVMvtcqHuv5jlqj3": {
+          "url": "https://presets.pvme.io/?id=XpeodVMvtcqHuv5jlqj3",
+          "methods": "shared"
+        }
+      }
+    },
+    "rs3-full-boss-guides/kalphite-queen.txt": {
+      "presets": {
+        "https://presets.pvme.io/?id=yVhCon0PlnX2U48y3sJe": {
+          "url": "https://presets.pvme.io/?id=yVhCon0PlnX2U48y3sJe",
+          "methods": [
+            {
+              "tag": "active"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+name: Deploy website
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: website
+    env:
+      GUIDES_DIR: ../pvme-guides
+      SITE_URL: ${{ vars.SITE_URL || 'https://pvme.github.io' }}
+      BASE_PATH: ${{ vars.BASE_PATH || '/pvme-website/' }}
+    steps:
+      - name: Check out website
+        uses: actions/checkout@v7
+        with:
+          path: website
+          persist-credentials: false
+
+      - name: Check out guides
+        uses: actions/checkout@v7
+        with:
+          repository: pvme/pvme-guides
+          path: pvme-guides
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Restore build caches
+        uses: actions/cache@v6
+        with:
+          path: |
+            website/catalogue/.cache
+            website/.cache
+            website/public/preset-previews
+          key: ${{ runner.os }}-website-v1-${{ hashFiles('website/package-lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-website-v1-${{ hashFiles('website/package-lock.json') }}-
+            ${{ runner.os }}-website-v1-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm run verify
+
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: website/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

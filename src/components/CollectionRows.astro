@@ -1,0 +1,62 @@
+---
+import Icon from './Icon.astro';
+import ResourceIcon from './ResourceIcon.astro';
+import { url } from '../lib/catalogue';
+import type { CollectionEntry } from '../lib/collection-entries';
+const {
+  entries,
+  hidden = false,
+  label = 'Collection guides',
+  headingLevel = 2,
+} = Astro.props as {
+  entries: CollectionEntry[];
+  hidden?: boolean;
+  label?: string;
+  headingLevel?: 2 | 3;
+};
+const Heading = `h${headingLevel}`;
+---
+
+<nav
+  class="resource-guide-rows"
+  data-resource-guide-results
+  hidden={hidden}
+  aria-label={label}
+>
+  {entries.map((entry) => (
+    <a
+      class="resource-guide-row"
+      id={entry.id}
+      href={url(entry.href)}
+      target={entry.href.startsWith('https://') ? '_blank' : undefined}
+      rel={
+        entry.href.startsWith('https://') ? 'noopener noreferrer' : undefined
+      }
+      data-entry
+      data-category={entry.category}
+      data-styles={JSON.stringify(entry.styles || [])}
+      data-terms={entry.terms || entry.title.toLowerCase()}
+    >
+      <span class="resource-guide-document">
+        <ResourceIcon name={entry.icon || 'document'} size={30} />
+      </span>
+      <span class="resource-guide-name">
+        <Heading>{entry.title}</Heading>
+        {entry.subtitle && <small>{entry.subtitle}</small>}
+      </span>
+      {!!entry.styles?.length && (
+        <span class="resource-guide-styles">
+          {entry.styles.map((style) => (
+            <span class="resource-style-badge">
+              <Icon name={style.toLowerCase()} size={21} />
+              {style}
+            </span>
+          ))}
+        </span>
+      )}
+      <span class="resource-guide-chevron">
+        <Icon name="arrow" size={22} />
+      </span>
+    </a>
+  ))}
+</nav>

@@ -1,0 +1,22 @@
+---
+import Hub from '../../components/Hub.astro';
+import CollectionDirectory from '../../components/CollectionDirectory.astro';
+import { websiteCollections } from '../../lib/collections';
+import { getCatalogue } from '../../lib/catalogue';
+export function getStaticPaths() {
+  return getCatalogue().bosses.map((hub) => ({
+    params: { slug: hub.slug },
+    props: { hub },
+  }));
+}
+const { hub } = Astro.props;
+const collection = websiteCollections(getCatalogue()).find(
+  (collection) => collection.href === hub.href,
+);
+---
+
+{collection ? (
+  <CollectionDirectory collection={collection} />
+) : (
+  <Hub hub={hub} />
+)}

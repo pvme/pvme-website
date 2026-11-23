@@ -1,0 +1,134 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../layouts/Layout.astro';
+import Search from '../components/Search.astro';
+import Icon from '../components/Icon.astro';
+import DiscordIcon from '../components/DiscordIcon.astro';
+import { url } from '../lib/catalogue';
+import bossesArtwork from '../assets/home-bosses.png';
+import '../styles/homepage.css';
+const discord = 'https://discord.gg/pvme';
+const contribute =
+  'https://github.com/pvme/pvme-guides/blob/master/README.md#contributing';
+const categories = [
+  {
+    title: 'Boss guides',
+    icon: 'bosses',
+    href: '/bosses/',
+    description: 'From learner guides to advanced strategies and rotations',
+  },
+  {
+    title: 'Slayer guides',
+    icon: 'slayer',
+    href: '/slayer/',
+    description: 'Methods for fighting common slayer mobs',
+  },
+  {
+    title: 'Resources',
+    icon: 'general',
+    href: '/resources/',
+    description: 'Recommended upgrade orders, perks, unlocks, and deep dives on all things PvM',
+  },
+];
+---
+
+<Layout
+  title="The RuneScape 3 PvM guide hub"
+  homepage
+  description="PvME’s community-maintained encyclopaedia for RuneScape 3 PvM. Find boss guides, Slayer methods, upgrade paths and more."
+>
+  <div class="home-shell">
+    <header class="home-header">
+      <a class="home-brand" href={url('/')} aria-label="PvME home">
+        <img src={url('/logo.png')} width="60" height="60" alt="" />
+        <span>PvME</span>
+      </a>
+      <nav aria-label="Community">
+        <a href={discord} target="_blank" rel="noopener noreferrer">
+          <DiscordIcon size={25} />
+          <span>Join our Discord community</span>
+        </a>
+      </nav>
+    </header>
+    <div class="home-dashboard">
+      <section class="home-hero" aria-labelledby="home-title">
+        <div class="home-hero-art" aria-hidden="true">
+          <Image
+            src={bossesArtwork}
+            alt=""
+            widths={[640, 960, 1280, 1600, 1952]}
+            sizes="(max-width: 560px) 100vw, (max-width: 800px) calc(100vw - 48px), (max-width: 1150px) calc(80vw - 58px), (max-width: 1467px) calc(76vw - 55px), 1060px"
+            format="webp"
+            quality={90}
+            loading="eager"
+            fetchpriority="high"
+          />
+        </div>
+        <div class="home-hero-copy">
+          <h1 id="home-title">
+            Your <span>RuneScape 3</span>
+            <br />
+            PvM guide hub
+          </h1>
+          <p>
+            <em>The</em> community-maintained encyclopaedia for RS3 PvM.
+            <br class="home-desktop-break" /> Boss guides, Slayer methods,
+            upgrade paths and more.
+          </p>
+          <Search prominent />
+        </div>
+      </section>
+      <nav class="home-categories" aria-label="Explore PvME">
+        {categories.map((category) => (
+          <a class="home-category" href={url(category.href)}>
+            <span class="home-category-icon">
+              <Icon name={category.icon} size={44} />
+            </span>
+            <div>
+              <h2>{category.title}</h2>
+              <p>{category.description}</p>
+            </div>
+            <span class="home-category-arrow">
+              <Icon name="arrow" size={22} />
+            </span>
+          </a>
+        ))}
+      </nav>
+      <div class="home-community-grid">
+        <a
+          class="home-community"
+          href={discord}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-labelledby="home-community-title"
+        >
+          <span class="home-panel-icon">
+            <DiscordIcon size={43} />
+          </span>
+          <div class="home-panel-copy">
+            <h2 id="home-community-title">Join the PvME community</h2>
+            <p>Ask questions, share setups and learn from other RS3 PvMers.</p>
+          </div>
+        </a>
+        <a
+          class="home-community home-contribute"
+          href={contribute}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-labelledby="home-contribute-title"
+        >
+          <span class="home-panel-icon">
+            <Icon name="contribute" size={40} />
+          </span>
+          <div class="home-panel-copy">
+            <h2 id="home-contribute-title">Help improve PvME</h2>
+            <p>
+              Anyone can contribute. Correct a mistake, update a strategy or
+              write a guide.
+            </p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

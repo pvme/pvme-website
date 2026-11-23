@@ -1,0 +1,56 @@
+---
+const { name, size = 22 } = Astro.props;
+import { combatStyleFile } from '../lib/combat-styles';
+import { url } from '../lib/catalogue';
+const styleFile = combatStyleFile(name);
+const paths: Record<string, string> = {
+  suggest:
+    'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z M7 9h10 M7 13h7',
+  contribute: 'm16 3 5 5 M4 15 16 3l5 5L9 20l-6 1 1-6Z M4 15l5 5',
+  home: 'm3 10 9-8 9 8 M5 9v12h5v-7h4v7h5V9',
+  bosses:
+    'M7 6 3 2v7l2 2v5l4 5h6l4-5v-5l2-2V2l-4 4-5-2-5 2Z M8 11l2 1 M16 11l-2 1 M9 17h6 M10 17v2 M14 17v2',
+  slayer:
+    'M10 7a7 7 0 0 0-5 12v3h8v-3a7 7 0 0 0 3-5 M6 12a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3 M9 17h.01 M8 20v2 M10 20v2 M15 5l-5 9 7-7Z M14 4l5 5 M17 5l2-2',
+  upgrade: 'M4 20 20 4 M8 4h12v12',
+  general:
+    'M12 5C8 2 4 3 2 4v16c3-2 7-2 10 0 3-2 7-2 10 0V4c-2-1-6-2-10 1Zm0 0v15 M6 7h2 M6 11h2 M16 7h2 M16 11h2',
+  external:
+    'M14 3h7v7 M21 3 11 13 M10 5H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6',
+  tools: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  necromancy: 'M12 3v18 M3 12h18 M6 6l12 12 M18 6 6 18',
+  magic: 'M9 3h6 M10 3v7l-6 9q-1 2 2 2h12q3 0 2-2l-6-9V3 M7 15h10',
+  ranged: 'M5 3q17 9 0 18 M5 3v18 M5 12h16 M17 8l4 4-4 4',
+  melee: 'M5 3 19 21 M3 17l5 5 M4 21l3-3 M19 3 5 21',
+  overview: 'M4 4h16v16H4z M7 8h10 M7 12h10 M7 16h10',
+  afk: 'M12 3a9 9 0 1 0 9 9 M12 3v9h9',
+  mechanics: 'm12 2 10 10-10 10L2 12z m0 5 5 5-5 5-5-5z',
+  search: 'M21 21l-6-6 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
+  arrow: 'm9 4 8 8-8 8',
+};
+---
+
+{styleFile ? (
+  <img
+    class="combat-style-icon"
+    src={url(`/icons/styles/${styleFile}`)}
+    width={size}
+    height={size}
+    alt=""
+    aria-hidden="true"
+  />
+) : (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d={paths[name] || paths.general} />
+  </svg>
+)}

@@ -1,0 +1,229 @@
+---
+import '../styles/fonts.css';
+import '../styles/global.css';
+import '../styles/reference.css';
+import '../styles/polish.css';
+import '../styles/components.css';
+import Search from '../components/Search.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import MediaOverlay from '../components/MediaOverlay.astro';
+import Icon from '../components/Icon.astro';
+import SuggestionDialog from '../components/SuggestionDialog.astro';
+import EditGuideLink from '../components/EditGuideLink.astro';
+import { url } from '../lib/catalogue';
+import {
+  combatStyleNames,
+  combatStylePath,
+  combatStyleFromPath,
+} from '../lib/combat-styles';
+const {
+  title,
+  activePath,
+  sourcePath,
+  actionGuide,
+  homepage = false,
+  breadcrumbs = Astro.url.pathname === url('/') ? [] : [{ label: title }],
+  description = 'RuneScape 3 PvM guides, rotations and strategies from the PvME community.',
+} = Astro.props;
+const nav = [
+  ['home', 'Home', '/'],
+  ['bosses', 'Bosses', '/bosses/'],
+  ['slayer', 'Slayer', '/slayer/'],
+  ['general', 'Resources', '/resources/'],
+  ['tools', 'Tools', '/tools/'],
+];
+const styles = combatStyleNames;
+const activeStyle = combatStyleFromPath(Astro.url.pathname);
+const isActive = (href: string) =>
+  activePath
+    ? href === activePath
+    : href === '/'
+      ? Astro.url.pathname === url('/')
+      : Astro.url.pathname.startsWith(url(href)) ||
+        (href === '/resources/' &&
+          Astro.url.pathname.startsWith(url('/guides/')));
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <link rel="icon" href={url('/favicon.ico')} />
+    <title>{title} · PvME</title>
+  </head>
+  <body class:list={[{ homepage }]}>
+    <a class="skip" href="#main">
+      Skip to content
+    </a>
+    {!homepage && (
+      <aside class="sidebar">
+        <div class="sidebar-navigation">
+          <a href={url('/')} class="brand">
+            <img
+              class="pvme-logo"
+              src={url('/logo.png')}
+              width="60"
+              height="60"
+              alt=""
+              decoding="async"
+            />
+            <span>PvME</span>
+          </a>
+          <details class="mobile-nav">
+            <summary>
+              Explore guides <span>☰</span>
+            </summary>
+            <nav aria-label="Mobile navigation">
+              {nav.map(([icon, label, href]) => (
+                <a
+                  href={url(href)}
+                  data-primary-nav={href}
+                  aria-current={isActive(href) ? 'page' : undefined}
+                >
+                  <Icon name={icon} />
+                  {label}
+                </a>
+              ))}
+            </nav>
+            <nav class="mobile-styles" aria-label="Combat styles">
+              {styles.map((style) => (
+                <a
+                  href={url(combatStylePath(style))}
+                  data-nav-style={style}
+                  class:list={{ active: activeStyle === style }}
+                  aria-current={activeStyle === style ? 'page' : undefined}
+                >
+                  <Icon name={style.toLowerCase()} />
+                  {style}
+                </a>
+              ))}
+            </nav>
+          </details>
+          <nav class="desktop-nav" aria-label="Main navigation">
+            {nav.map(([icon, label, href]) => (
+              <a
+                class:list={[
+                  {
+                    active: isActive(href),
+                  },
+                ]}
+                href={url(href)}
+                data-primary-nav={href}
+                aria-current={isActive(href) ? 'page' : undefined}
+              >
+                <Icon name={icon} />
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div class="style-nav">
+            <p>COMBAT STYLES</p>
+            <nav aria-label="Combat styles">
+              {styles.map((style) => (
+                <a
+                  href={url(combatStylePath(style))}
+                  data-nav-style={style}
+                  class:list={{ active: activeStyle === style }}
+                  aria-current={activeStyle === style ? 'page' : undefined}
+                >
+                  <Icon name={style.toLowerCase()} />
+                  {style}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </div>
+        <div class="sidebar-bottom">
+          <a
+            class="discord-invite"
+            href="https://discord.gg/pvme"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join PvM Encyclopedia on Discord"
+          >
+            <p class="invite-eyebrow">Discord invite</p>
+            <div class="invite-server">
+              <img
+                src={url('/logo.png')}
+                width="40"
+                height="40"
+                alt=""
+                loading="lazy"
+              />
+              <strong id="discord-invite-title">PvM Encyclopedia</strong>
+            </div>
+            <span class="invite-join">
+              Join the community <span aria-hidden="true">↗</span>
+            </span>
+          </a>
+        </div>
+      </aside>
+    )}
+    <main id="main">
+      {!homepage && (
+        <header
+          class:list={['site-header', { 'has-guide-actions': !!actionGuide }]}
+        >
+          <div class="site-header-inner">
+            <div class="desktop-header-breadcrumbs">
+              <Breadcrumbs items={breadcrumbs} />
+              {actionGuide && (
+                <span class="header-guide-edit">
+                  <EditGuideLink guide={actionGuide} />
+                </span>
+              )}
+            </div>
+            <div class="site-header-actions">
+              <div class="site-search">
+                <Search compact />
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+      <slot />
+      {actionGuide && <SuggestionDialog />}
+    </main>
+    <footer>
+      <span>
+        Built by the PvME community. RuneScape is a trademark of Jagex Ltd.
+      </span>
+      {sourcePath && (
+        <a
+          data-guide-source
+          target="_blank"
+          rel="noopener noreferrer"
+          href={`https://github.com/pvme/pvme-guides/blob/master/${sourcePath}`}
+        >
+          View original source ↗
+        </a>
+      )}
+      <a class="back-to-top" href="#main">
+        Back to top ↑
+      </a>
+    </footer>
+    <MediaOverlay />
+    <script src="../scripts/heading-links.ts" />
+    <script>
+      const siteHeader = document.querySelector<HTMLElement>('.site-header');
+      const updateHeader = () =>
+        siteHeader?.classList.toggle('is-stuck', window.scrollY > 0);
+      window.addEventListener('scroll', updateHeader, { passive: true });
+      updateHeader();
+      document.addEventListener(
+        'error',
+        (e) => {
+          const image = e.target;
+          if (
+            image instanceof HTMLImageElement &&
+            !image.classList.contains('emoji')
+          )
+            image.classList.add('image-unavailable');
+        },
+        true,
+      );
+    </script>
+  </body>
+</html>

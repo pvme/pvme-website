@@ -1,0 +1,41 @@
+---
+import CollectionDirectory from '../components/CollectionDirectory.astro';
+import GuidePage from '../components/GuidePage.astro';
+import { getCatalogue } from '../lib/catalogue';
+import { websiteCollections } from '../lib/collections';
+import { navigationSettings } from '../../catalogue/src/navigation-definitions';
+export function getStaticPaths() {
+  const catalogue = getCatalogue();
+  const encounterRoutes = new Set(
+    [...catalogue.bosses, ...catalogue.slayer].map((hub) => hub.href),
+  );
+  const collections = websiteCollections(catalogue);
+  return [
+    ...collections
+      .filter((collection) => !encounterRoutes.has(collection.href))
+      .map((collection) => ({
+        params: { collection: collection.href.slice(1, -1) },
+        props: { collection },
+      })),
+    ...collections.flatMap((collection) =>
+      collection.guides
+        .filter(
+          (guide) =>
+            guide.href ===
+            `${collection.href}${navigationSettings.routes.collectionGuideSegment}/${guide.slug}/`,
+        )
+        .map((guide) => ({
+          params: { collection: guide.href.slice(1, -1) },
+          props: { guide },
+        })),
+    ),
+  ];
+}
+const { collection, guide } = Astro.props;
+---
+
+{guide ? (
+  <GuidePage guide={guide} />
+) : (
+  <CollectionDirectory collection={collection} />
+)}
