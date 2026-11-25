@@ -1,5 +1,5 @@
 ---
-import LandingLayout from '../../layouts/LandingLayout.astro';
+import DirectoryLayout from '../../layouts/DirectoryLayout.astro';
 import Directory from '../../components/Directory.astro';
 import { getCatalogue } from '../../lib/catalogue';
 import { websiteCollections, withCollectionHubs } from '../../lib/collections';
@@ -11,7 +11,7 @@ const slayer = withCollectionHubs(
 );
 ---
 
-<LandingLayout
+<DirectoryLayout
   title="Slayer"
   heading="Slayer guides"
   description="Methods for fighting common slayer mobs"
@@ -22,4 +22,4 @@ const slayer = withCollectionHubs(
     styleFilters
     parentPath="/slayer/"
   />
-</LandingLayout>
+</DirectoryLayout>

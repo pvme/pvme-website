@@ -1,5 +1,5 @@
 ---
-import LandingLayout from '../../layouts/LandingLayout.astro';
+import DirectoryLayout from '../../layouts/DirectoryLayout.astro';
 import ResourceGuideBrowser from '../../components/ResourceGuideBrowser.astro';
 import { getCatalogue, url } from '../../lib/catalogue';
 import '../../styles/resources.css';
@@ -18,7 +18,7 @@ const guides = [
 const styleLinks = combatStyleLinks(getCatalogue().guides);
 ---
 
-<LandingLayout
+<DirectoryLayout
   title="Resources"
   activePath="/resources/"
   pageClass="resources-page"
@@ -174,5 +174,5 @@ const styleLinks = combatStyleLinks(getCatalogue().guides);
       library is available above.
     </p>
   </noscript>
-</LandingLayout>
+</DirectoryLayout>
 <script src="../../scripts/resources.ts" />

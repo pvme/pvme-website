@@ -1,7 +1,7 @@
 ---
 import { type Guide, getCatalogue } from '../lib/catalogue';
 import { getRendered } from '../lib/renderer';
-import GuideActions from './GuideActions.astro';
+import { serializeSourceMap } from '../lib/source-map';
 import '../styles/preset-previews.css';
 import '../styles/embed-accordions.css';
 const { guide } = Astro.props as { guide: Guide };
@@ -16,7 +16,6 @@ const rendered = getRendered(guide, getCatalogue().root);
         <path d="M0 0h10L5 7z" fill="currentColor" />
       </svg>
     </summary>
-    <GuideActions guide={guide} />
     <nav aria-label="Guide sections">
       {rendered.toc
         .filter((h) => h.level > 1)
@@ -27,12 +26,24 @@ const rendered = getRendered(guide, getCatalogue().root);
         ))}
     </nav>
   </details>
-  <article class="guide-content" aria-label={guide.title}>
+  <article
+    class="guide-content"
+    aria-label={guide.title}
+    data-guide-source={rendered.sourceMap?.path}
+    data-guide-source-hash={rendered.sourceMap?.sourceHash}
+  >
     <div id={`${guide.id}--guide-start`}></div>
     <div set:html={rendered.html} />
+    {rendered.sourceMap && (
+      <script
+        type="application/json"
+        data-guide-source-map
+        is:inline
+        set:html={serializeSourceMap(rendered.sourceMap)}
+      />
+    )}
   </article>
   <aside class="toc">
-    <GuideActions guide={guide} />
     <p>ON THIS PAGE</p>
     <nav aria-label="Table of contents">
       {rendered.toc

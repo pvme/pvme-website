@@ -5,6 +5,8 @@ import {
   type HeadingBlock,
 } from '@pvme/guide-parser';
 import { readFileSync } from 'node:fs';
+import { createSourceMapper, sourceFingerprint } from './source-map-builder';
+import type { GuideSourceMap } from './source-map';
 import { mediaLink, standaloneMediaRow } from './media-links';
 import { discordAddress, getDiscordLinkResolver } from './discord-links';
 import { pageLinkTitle, pageLinkNodes } from './page-link-title';
@@ -60,6 +62,7 @@ const labelText = (nodes: InlineNode[]): string =>
     .trim();
 export interface RenderedGuide {
   html: string;
+  sourceMap?: GuideSourceMap;
   toc: { id: string; text: string; level: number }[];
   methods: { id: string; anchor: string; resolved: boolean }[];
   image?: string;
@@ -69,9 +72,23 @@ export function renderGuide(
   guide: Pick<Guide, 'methods' | 'sections'>,
   prefix = '',
   previews: Record<string, PreviewRecord> = presetPreviewCache(),
-  options: { referenceTitle?: string } = {},
+  options: { referenceTitle?: string; sourcePath?: string } = {},
 ): RenderedGuide {
   const doc = parseGuide(source);
+  const mapper =
+    options.sourcePath && !options.referenceTitle
+      ? createSourceMapper(doc, options.sourcePath)
+      : undefined;
+  let mappingEnabled = true;
+  const withoutMappings = (render: () => string): string => {
+    const previous = mappingEnabled;
+    mappingEnabled = false;
+    try {
+      return render();
+    } finally {
+      mappingEnabled = previous;
+    }
+  };
   // Keep style-only ability-bar labels in the image alt text.
   const barLabels = new Set<BlockNode>();
   const barImages = new Map<BlockNode, string>();
@@ -384,12 +401,29 @@ export function renderGuide(
       a.kind === 'image' &&
       a.range.startLine < (headings[1]?.range.startLine || Infinity),
   );
-  const inline = (nodes: InlineNode[], linked = false): string =>
+  const inline = (
+    nodes: InlineNode[],
+    linked = false,
+    heading = false,
+  ): string =>
     nodes
-      .map((n) => {
+      .map((n, index) => {
+        const textValue =
+          n.type === 'text' && heading && index === 0
+            ? n.value.replace(/^> +/, '')
+            : n.type === 'text'
+              ? n.value
+              : '';
         switch (n.type) {
           case 'text':
-            return escape(n.value);
+            return !linked && mappingEnabled && mapper
+              ? (() => {
+                  const ref = mapper.reference(n, 'text');
+                  return ref
+                    ? `<span${ref}>${escape(textValue)}</span>`
+                    : escape(textValue);
+                })()
+              : escape(textValue);
           case 'bold':
             return `<strong>${inline(n.children, linked)}</strong>`;
           case 'italic':
@@ -422,7 +456,7 @@ export function renderGuide(
               ? pageLinkTitle(
                   getDiscordLinkResolver().title(raw) || 'Related guide',
                 )
-              : 'Related Discord guide ↗';
+              : 'Discord Channel ↗';
             return `<a href="${href}">${escape(title)}</a>`;
           }
           case 'image':
@@ -436,7 +470,7 @@ export function renderGuide(
                 ? `#${escape(ref.target)}`
                 : ''
               : guideHref(n.url, labelText(n.children));
-            if (!href) return inline(n.children);
+            if (!href) return inline(n.children, true);
             const youtube = mediaLink(n.url)?.kind === 'youtube';
             const overlay =
               n.suppressEmbed || youtube ? overlayAttrs(n.url) : '';
@@ -465,7 +499,22 @@ export function renderGuide(
               );
             if (!linked && hasPresetImage(n.children))
               return presetCard(n.url, content);
-            return `<a href="${href}"${overlay}${href.startsWith('#') ? '' : ' rel="noopener noreferrer"'}>${content}</a>`;
+            const editable =
+              mappingEnabled &&
+              !linked &&
+              /^https?:\/\//.test(n.url) &&
+              !/[\s<>"'\\${}]/.test(n.url) &&
+              !href.startsWith('/') &&
+              !discordAddress(n.url) &&
+              !n.destination.length &&
+              !mediaLink(n.url) &&
+              !presetDestinations.has(n.url);
+            const refs =
+              editable && mapper
+                ? mapper.reference(n, 'link-label') +
+                  mapper.reference(n, 'link-url')
+                : '';
+            return `<a href="${href}"${refs}${overlay}${href.startsWith('#') ? '' : ' rel="noopener noreferrer"'}>${content}</a>`;
           }
           case 'timestamp': {
             const date = new Date(Number(n.timestamp) * 1000);
@@ -562,10 +611,10 @@ export function renderGuide(
       if (barLabels.has(b)) return '';
       switch (b.type) {
         case 'heading': {
-          if (sameReferenceTitle(labelText(b.children)))
+          if (sameReferenceTitle(labelText(b.children).replace(/^> +/, '')))
             return `<span id="${escape(ids.get(b.id) || b.id)}"></span>`;
           const level = Math.max(2, b.level);
-          let content = inline(b.children),
+          let content = inline(b.children, false, true),
             examples = false;
           const firstLink = b.children.findIndex(
             (node) => node.type === 'link',
@@ -584,7 +633,7 @@ export function renderGuide(
                 exampleNodes.unshift({ ...tail, value: suffix });
               }
             }
-            content = `<span class="mechanic-title">${inline(titleNodes)}</span><span class="mechanic-examples">${inline(exampleNodes)}</span>`;
+            content = `<span class="mechanic-title">${inline(titleNodes, false, true)}</span><span class="mechanic-examples">${inline(exampleNodes)}</span>`;
             examples = true;
           }
           const headingClass =
@@ -683,7 +732,7 @@ export function renderGuide(
               ? `<p><a href="${safe(b.url)}">Download attachment ↗</a></p>`
               : '';
         case 'embed':
-          return b.valid ? embedded(b.value) : '';
+          return b.valid ? withoutMappings(() => embedded(b.value)) : '';
         case 'blank':
         case 'command':
         case 'unknown-command':
@@ -718,7 +767,7 @@ export function renderGuide(
     }
     return output.join('');
   };
-  const html = doc.messages
+  let html = doc.messages
     .map((m) => {
       const mechanic = mechanicMessages.has(m);
       const abilityBars = m.blocks.some((block) => barImages.has(block));
@@ -734,7 +783,10 @@ export function renderGuide(
       (_, attributes: string) =>
         `<a${attributes} target="_blank"${/\brel=/.test(attributes) ? '' : ' rel="noopener noreferrer"'}>`,
     );
+  const mapped = mapper?.finish(html);
+  if (mapped) html = mapped.html;
   return {
+    ...(mapped ? { sourceMap: mapped.sourceMap } : {}),
     html: prefix
       ? html
           .replace(
@@ -748,7 +800,7 @@ export function renderGuide(
       : html,
     toc: headings.map((h) => ({
       id: prefix + ids.get(h.id)!,
-      text: labelText(h.children),
+      text: labelText(h.children).replace(/^> +/, ''),
       level: h.level,
     })),
     methods: methods.map((m) => ({ ...m, anchor: prefix + m.anchor })),
@@ -764,14 +816,21 @@ function media(raw: string, alt = 'Guide illustration') {
 }
 const cache = new Map<string, RenderedGuide>();
 export function getRendered(g: Guide, root: string) {
-  const key = `${root}:${g.id}:${previewVersion()}`;
+  const source = readFileSync(sourcePath(root, g.path), 'utf8');
+  const key = JSON.stringify([
+    root,
+    g.id,
+    g.path,
+    previewVersion(),
+    g.methods,
+    g.sections,
+  ]);
+  const hash = sourceFingerprint(source);
   let r = cache.get(key);
-  if (!r) {
-    r = renderGuide(
-      readFileSync(sourcePath(root, g.path), 'utf8'),
-      g,
-      `${g.id}--`,
-    );
+  if (!r || r.sourceMap?.sourceHash !== hash) {
+    r = renderGuide(source, g, `${g.id}--`, presetPreviewCache(), {
+      sourcePath: g.path,
+    });
     cache.set(key, r);
   }
   return r;

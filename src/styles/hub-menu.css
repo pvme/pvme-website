@@ -6,6 +6,9 @@
   margin-right: 277px;
   isolation: isolate;
 }
+.hub-tabs:has(.hub-menu:not([hidden])) {
+  z-index: 16;
+}
 .hub-tabs > .hub-art {
   --hub-art-drop: 44px;
   top: auto;
@@ -206,8 +209,20 @@
     flex-wrap: wrap;
     gap: 0;
   }
-  .hub-tabs a {
-    padding-inline: 10px;
+  .hub-tabs {
+    min-height: 40px;
+  }
+  .hub-tabs [data-tab] {
+    height: 40px;
+    padding: 8px 9px;
+    gap: 5px;
+    font-size: 13px;
+    line-height: 20px;
+    white-space: nowrap;
+  }
+  .hub-tabs [data-tab] > svg:not(.tab-chevron),
+  .hub-tabs [data-tab] .tab-style-icons {
+    display: none;
   }
   .hub-tab-item {
     position: static;

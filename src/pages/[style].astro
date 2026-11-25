@@ -1,5 +1,4 @@
 ---
-import Layout from '../layouts/Layout.astro';
 import CombatStyleDirectory from '../components/CombatStyleDirectory.astro';
 import { getCatalogue } from '../lib/catalogue';
 import { combatStyleNames } from '../lib/combat-styles';
@@ -19,13 +18,4 @@ const directories = combatStyleDirectories(
 ).filter((directory) => directory.style === style);
 ---
 
-<Layout
-  title={`${style} guides`}
-  breadcrumbs={[
-    { label: 'Home', href: '/' },
-    { label: 'Resources', href: '/resources/' },
-    { label: style },
-  ]}
->
-  <CombatStyleDirectory directories={directories} selectedStyle={style} />
-</Layout>
+<CombatStyleDirectory directories={directories} selectedStyle={style} />

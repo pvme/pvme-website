@@ -1,13 +1,12 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Breadcrumbs from './Breadcrumbs.astro';
+import GuideLayout from '../layouts/GuideLayout.astro';
 import GuideRenderer from './GuideRenderer.astro';
-import EditGuideLink from './EditGuideLink.astro';
 import BossLinks from './BossLinks.astro';
-import CombatText from './CombatText.astro';
 import { getCatalogue, type Guide } from '../lib/catalogue';
 import { websiteCollections } from '../lib/collections';
+import { pageLinkTitle } from '../lib/page-link-title';
 const { guide } = Astro.props as { guide: Guide };
+const displayTitle = pageLinkTitle(guide.title);
 const catalogue = getCatalogue();
 const collection = websiteCollections(catalogue).find(
   (collection) =>
@@ -37,12 +36,12 @@ const breadcrumbs = [
     : hub
       ? [{ label: hub.name, href: hub.href }]
       : []),
-  { label: guide.title },
+  { label: displayTitle },
 ];
 ---
 
-<Layout
-  title={guide.title}
+<GuideLayout
+  title={displayTitle}
   activePath={
     guide.types.includes('upgrade-order') ? '/resources/' : section.href
   }
@@ -50,27 +49,8 @@ const breadcrumbs = [
   actionGuide={guide}
   breadcrumbs={breadcrumbs}
 >
-  <div class="page">
-    <Breadcrumbs items={breadcrumbs} />
-    <header class="page-heading guide-page-heading">
-      <div class="guide-heading-copy">
-        <span class="eyebrow">{guide.category}</span>
-        <div class="guide-title-row">
-          <h1>
-            <CombatText text={guide.title} />
-          </h1>
-          <EditGuideLink guide={guide} />
-        </div>
-        {guide.styles.length > 0 && (
-          <p>
-            <CombatText text={guide.styles.join(' · ')} />
-          </p>
-        )}
-      </div>
-    </header>
-    <BossLinks
-      bosses={guide.containedBosses ? hub?.containedBosses : undefined}
-    />
-    <GuideRenderer guide={guide} />
-  </div>
-</Layout>
+  <BossLinks
+    bosses={guide.containedBosses ? hub?.containedBosses : undefined}
+  />
+  <GuideRenderer guide={guide} />
+</GuideLayout>

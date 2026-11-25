@@ -1,0 +1,117 @@
+---
+import { url } from '../lib/catalogue';
+import ReviewChangesDialog from './ReviewChangesDialog.astro';
+import Icon from './Icon.astro';
+---
+
+<link rel="stylesheet" href={url('/src/styles/inline-editor.css?direct')} />
+<header
+  data-inline-editor
+  hidden
+  aria-label="Guide editing controls"
+  class="inline-toolbar"
+>
+  <div class="inline-editor-context">
+    <span class="inline-editing-badge">Editing</span>
+    <div class="inline-editor-title">
+      <strong data-editor-guide></strong>
+      <div class="inline-editor-status">
+        <p data-editor-status role="status" aria-live="polite"></p>
+        <div data-editor-feedback></div>
+      </div>
+    </div>
+  </div>
+  <div class="inline-editor-tools" role="group" aria-label="Editing tools">
+    <div data-editor-history></div>
+    <div
+      class="inline-editor-secondary"
+      data-editor-secondary
+      role="group"
+      aria-label="Additional editing actions"
+    ></div>
+    <details class="inline-editor-options" data-editor-options>
+      <summary aria-label="Editing options" title="Editing options">
+        ⋯
+      </summary>
+      <div class="inline-editor-menu">
+        <button type="button" data-editor-canvas>
+          Page canvas
+        </button>
+        <button type="button" data-editor-discard>
+          Discard draft
+        </button>
+        <div data-draft-recovery hidden>
+          <p data-draft-message></p>
+          <button type="button" data-draft-export>
+            Export stored draft for recovery
+          </button>
+          <button type="button" data-draft-discard>
+            Discard stored draft and continue
+          </button>
+        </div>
+      </div>
+    </details>
+  </div>
+  <div class="inline-editor-actions" role="group" aria-label="Finish editing">
+    <button
+      type="button"
+      data-editor-exit
+      title="Exit editing and keep your draft"
+    >
+      Done
+    </button>
+    <button
+      type="button"
+      data-editor-review
+      class="inline-review-action"
+      aria-label="Submit changes"
+    >
+      <Icon name="overview" size={15} />
+      <span>Submit changes</span>
+    </button>
+  </div>
+  <p data-editor-error role="alert"></p>
+</header>
+<dialog
+  data-inline-value-editor
+  class="inline-dialog inline-value-dialog"
+  aria-labelledby="inline-value-title"
+>
+  <form data-value-form>
+    <h2 id="inline-value-title">Edit guide content</h2>
+    <p>Plain text only. Existing formatting stays in place.</p>
+    <div data-value-fields></div>
+    <p data-value-error role="alert"></p>
+    <div class="inline-actions">
+      <button type="submit">Save change</button>
+      <button type="button" data-value-undo>
+        Undo changes to this content
+      </button>
+      <button type="button" data-value-cancel>
+        Cancel
+      </button>
+    </div>
+  </form>
+</dialog>
+<ReviewChangesDialog />
+<dialog
+  data-editor-confirm
+  class="inline-dialog"
+  aria-labelledby="inline-confirm-title"
+>
+  <h2 id="inline-confirm-title">Discard draft?</h2>
+  <p data-confirm-message></p>
+  <div class="inline-actions">
+    <button type="button" data-confirm-discard>
+      Discard
+    </button>
+    <button type="button" data-confirm-cancel>
+      Cancel
+    </button>
+  </div>
+</dialog>
+<script
+  is:inline
+  type="module"
+  src={url('/src/scripts/inline-editor-dev.ts')}
+></script>

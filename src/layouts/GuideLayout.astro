@@ -1,0 +1,45 @@
+---
+import SiteShell from '../components/SiteShell.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import EditGuideLink from '../components/EditGuideLink.astro';
+import type { Guide } from '../lib/catalogue';
+interface Props {
+  title: string;
+  breadcrumbs: { label: string; href?: string }[];
+  actionGuide?: Guide;
+  sourcePath?: string;
+  activePath?: string;
+  pageClass?: string;
+  headingClass?: string;
+}
+const {
+  title,
+  breadcrumbs,
+  actionGuide,
+  sourcePath,
+  activePath,
+  pageClass,
+  headingClass,
+} = Astro.props;
+---
+
+<SiteShell
+  title={title}
+  breadcrumbs={breadcrumbs}
+  actionGuide={actionGuide}
+  sourcePath={sourcePath}
+  activePath={activePath}
+>
+  <div class:list={['page', pageClass]} data-page-layout="guide">
+    <Breadcrumbs items={breadcrumbs} />
+    <header class:list={['page-heading', 'guide-page-heading', headingClass]}>
+      <div class="guide-heading-copy">
+        <div class="guide-title-row">
+          <h1>{title}</h1>
+          {actionGuide && <EditGuideLink guide={actionGuide} />}
+        </div>
+      </div>
+    </header>
+    <slot />
+  </div>
+</SiteShell>

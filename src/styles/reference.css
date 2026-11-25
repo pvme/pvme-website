@@ -478,6 +478,19 @@ main {
   > .heading-permalink {
   top: calc(var(--guide-divider-gap) + 0.65em);
 }
+/* Embedded headings use the panel's spacing, not page-section dividers. */
+.guide-content:not(.reference-content)
+  :is(blockquote, .guide-embed, .mechanic-message)
+  h2 {
+  --guide-divider-gap: 0px;
+  border-top: 0;
+  padding-top: 0;
+}
+.guide-content:not(.reference-content)
+  :is(blockquote, .guide-embed, .mechanic-message)
+  > h2:first-child {
+  margin-top: 0;
+}
 .guide-content .guide-embed {
   border: 1px solid #2c4361;
   border-radius: 9px;

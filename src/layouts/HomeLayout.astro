@@ -1,0 +1,14 @@
+---
+import SiteShell from '../components/SiteShell.astro';
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+---
+
+<SiteShell title={title} description={description} homepage>
+  <div class="home-shell" data-page-layout="home">
+    <slot />
+  </div>
+</SiteShell>

@@ -31,6 +31,40 @@ export function initializeSearch(
     results.hidden = true;
     input.setAttribute('aria-expanded', 'false');
   };
+  const mobileContainer = root.closest<HTMLElement>('.sidebar-search');
+  const mobileToggle = mobileContainer?.querySelector<HTMLButtonElement>(
+    '[data-mobile-search-toggle]',
+  );
+  const closeMobile = (restoreFocus = false) => {
+    if (!mobileContainer?.hasAttribute('data-mobile-search-open')) return;
+    mobileContainer.removeAttribute('data-mobile-search-open');
+    mobileToggle?.setAttribute('aria-expanded', 'false');
+    close();
+    if (restoreFocus) mobileToggle?.focus();
+  };
+  const openMobile = () => {
+    if (
+      !mobileContainer ||
+      !mobileToggle ||
+      (doc.defaultView?.matchMedia &&
+        !doc.defaultView.matchMedia('(max-width: 760px)').matches)
+    )
+      return;
+    mobileContainer.setAttribute('data-mobile-search-open', '');
+    mobileToggle.setAttribute('aria-expanded', 'true');
+    const menu = mobileContainer
+      .closest('.sidebar-navigation')
+      ?.querySelector<HTMLDetailsElement>('.mobile-nav');
+    if (menu) menu.open = false;
+  };
+  mobileToggle?.addEventListener('click', () => {
+    if (mobileContainer?.hasAttribute('data-mobile-search-open'))
+      closeMobile(true);
+    else {
+      openMobile();
+      input.focus();
+    }
+  });
   const run = async () => {
     const query = input.value.trim(),
       request = ++generation;
@@ -105,6 +139,10 @@ export function initializeSearch(
       e.preventDefault();
       e.stopPropagation();
       close();
+      if (mobileContainer?.hasAttribute('data-mobile-search-open')) {
+        closeMobile(true);
+        return;
+      }
       suppressFocus = true;
       input.focus();
       suppressFocus = false;
@@ -147,11 +185,18 @@ export function initializeSearch(
           !doc.querySelector('[data-search].compact')))
     ) {
       e.preventDefault();
+      openMobile();
       input.focus();
     }
   });
   doc.addEventListener('click', (e) => {
-    if (!root.contains(e.target as Node)) close();
+    if (
+      !root.contains(e.target as Node) &&
+      !mobileToggle?.contains(e.target as Node)
+    )
+      close();
+    if (mobileContainer && !mobileContainer.contains(e.target as Node))
+      closeMobile();
   });
   root.addEventListener('focusout', (e) => {
     if (e.relatedTarget && !root.contains(e.relatedTarget as Node)) close();

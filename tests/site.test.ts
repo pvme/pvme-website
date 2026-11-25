@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { parseHTML } from 'linkedom';
 import { getCatalogue, url } from '../src/lib/catalogue';
 import { renderGuide } from '../src/lib/renderer';
+import { pageLinkTitle } from '../src/lib/page-link-title';
 import { websiteCollections } from '../src/lib/collections';
 import { groupCollectionCards } from '../src/lib/collection-cards';
 import { initializeDirectory } from '../src/scripts/directory';
@@ -14,6 +15,110 @@ import { collectionDefinitions } from '../catalogue/src/collection-definitions';
 import { navigationSettings } from '../catalogue/src/navigation-definitions';
 import { initializeSearch } from '../src/scripts/search';
 import { initializeHub } from '../src/scripts/hub';
+
+test('guide contributions live in the header and search lives in the navigation', () => {
+  const { document } = page('slayer/blood-reavers/');
+  assert.equal(document.querySelectorAll('[data-search]').length, 1);
+  assert.ok(document.querySelector('.sidebar [data-search]'));
+  assert.equal(document.querySelector('.site-header [data-search]'), null);
+  assert.equal(document.querySelectorAll('[data-guide-actions]').length, 1);
+  assert.ok(document.querySelector('.site-header [data-suggest-improvement]'));
+  const menu = document.querySelector('.site-header .guide-edit-menu')!;
+  assert.ok(menu.textContent?.includes('Edit (in place)'));
+  const external = menu.querySelector('a[data-guide-editor-external]')!;
+  assert.match(external.getAttribute('href')!, /guide-editor/);
+  assert.equal(external.getAttribute('target'), '_blank');
+  for (const pencil of document.querySelectorAll('[data-guide-edit]')) {
+    assert.equal(pencil.tagName, 'BUTTON');
+    assert.equal(pencil.hasAttribute('href'), false);
+    assert.match(pencil.getAttribute('aria-label')!, /in place$/);
+  }
+});
+
+test('standalone guide titles use readable casing without duplicating combat icons', () => {
+  const guide = getCatalogue().guides.find((guide) =>
+    guide.path.endsWith('/ability-information/necromancy-abilities.txt'),
+  )!;
+  const { document } = page(guide.href.replace(/^\//, ''));
+  const title = document.querySelector('.guide-title-row h1')!;
+  assert.equal(title.textContent?.trim(), 'Necromancy Abilities');
+  assert.equal(title.querySelectorAll('img').length, 0);
+  assert.ok(!document.querySelector('.guide-page-heading .eyebrow'));
+  assert.ok(!document.querySelector('.guide-heading-copy > p'));
+});
+
+test('all pages use one of the three shared page layouts', () => {
+  const layouts = new Set<string>();
+  for (const file of walk('dist')) {
+    const { document } = parseHTML(read(file));
+    const roots = [...document.querySelectorAll('[data-page-layout]')];
+    assert.equal(roots.length, 1, file);
+    const layout = roots[0].getAttribute('data-page-layout')!;
+    assert.ok(['home', 'directory', 'guide'].includes(layout), file);
+    layouts.add(layout);
+    if (layout === 'guide') {
+      const heading = roots[0].querySelector(':scope > .guide-page-heading')!;
+      assert.ok(heading, file);
+      assert.equal(heading.querySelectorAll('h1').length, 1, file);
+      assert.ok(!heading.querySelector('.eyebrow, p'), file);
+    }
+    if (layout === 'directory')
+      assert.equal(
+        roots[0].querySelectorAll(':scope > .page-heading h1').length,
+        1,
+        file,
+      );
+  }
+  assert.deepEqual([...layouts].sort(), ['directory', 'guide', 'home']);
+});
+
+test('directory and guide layouts keep their dynamic navigation and editing controls', () => {
+  for (const path of [
+    'bosses/',
+    'slayer/',
+    'resources/',
+    'tools/',
+    'necromancy/',
+    'resources/upgrade-orders/',
+  ]) {
+    const { document } = page(path);
+    assert.equal(
+      document
+        .querySelector('[data-page-layout]')!
+        .getAttribute('data-page-layout'),
+      'directory',
+      path,
+    );
+    assert.ok(document.querySelector('.sidebar [data-search]'), path);
+  }
+  for (const path of ['bosses/araxxor/', 'slayer/blood-reavers/']) {
+    const { document } = page(path);
+    assert.equal(
+      document
+        .querySelector('[data-page-layout]')!
+        .getAttribute('data-page-layout'),
+      'guide',
+      path,
+    );
+    assert.ok(document.querySelector('[data-hub] .hub-tabs'), path);
+    assert.ok(
+      document.querySelector('.guide-title-row [data-guide-edit]'),
+      path,
+    );
+    assert.ok(
+      document.querySelector('.site-header [data-guide-actions]'),
+      path,
+    );
+  }
+  const { document } = page('');
+  assert.equal(
+    document
+      .querySelector('[data-page-layout]')!
+      .getAttribute('data-page-layout'),
+    'home',
+  );
+  assert.ok(!document.querySelector('.sidebar'));
+});
 
 const read = (path: string) => readFileSync(path, 'utf8');
 const page = (path: string) => parseHTML(read(`dist/${path}index.html`));
@@ -499,4 +604,167 @@ test('guide navigation preserves filters and opens the requested method section'
       ),
     ].some((link) => !link.getAttribute('href')?.includes('#')),
   );
+});
+
+test('Discord title prefixes disappear from headings and navigation without changing ordinary quotes', () => {
+  const source =
+    '# > __Magic DPM Advice__\n## > Core Rotation\n### Settings > Interfaces\n> Ordinary quote';
+  const rendered = renderGuide(
+    source,
+    { methods: [], sections: [] },
+    '',
+    {},
+    { sourcePath: 'test.txt' },
+  );
+  const { document } = parseHTML(rendered.html);
+  assert.deepEqual(
+    [...document.querySelectorAll('h2,h3')].map((node) => node.textContent),
+    ['Magic DPM Advice', 'Core Rotation', 'Settings > Interfaces'],
+  );
+  assert.deepEqual(
+    rendered.toc.map((item) => item.text),
+    ['Magic DPM Advice', 'Core Rotation', 'Settings > Interfaces'],
+  );
+  assert.equal(
+    document.querySelector('blockquote')!.textContent,
+    'Ordinary quote',
+  );
+  assert.equal(pageLinkTitle('> magic dpm advice'), 'Magic DPM Advice');
+  assert.equal(pageLinkTitle('Settings > Interfaces'), 'Settings > Interfaces');
+});
+
+test('mobile search button expands search, closes navigation, and dismisses with Escape or outside click', () => {
+  const { document, window } = parseHTML(
+    '<html><body><div class="sidebar-navigation"><div class="sidebar-search"><button data-mobile-search-toggle aria-expanded="false">Search</button><div class="search compact" data-search><label><input><button data-search-clear hidden>Clear</button></label><div class="search-results" hidden></div></div></div><details class="mobile-nav" open><summary>Menu</summary></details></div><main>Content</main></body></html>',
+  );
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({ matches: true }),
+  });
+  const root = document.querySelector<HTMLElement>('[data-search]')!;
+  initializeSearch(root, async () => []);
+  const button = document.querySelector('[data-mobile-search-toggle]')!;
+  const container = document.querySelector('.sidebar-search')!;
+  button.dispatchEvent(new window.Event('click', { bubbles: true }));
+  assert.equal(button.getAttribute('aria-expanded'), 'true');
+  assert.ok(container.hasAttribute('data-mobile-search-open'));
+  assert.equal(
+    document.querySelector<HTMLDetailsElement>('.mobile-nav')!.open,
+    false,
+  );
+  const escape = new window.Event('keydown', {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.assign(escape, { key: 'Escape' });
+  root.querySelector('input')!.dispatchEvent(escape);
+  assert.equal(button.getAttribute('aria-expanded'), 'false');
+  assert.equal(container.hasAttribute('data-mobile-search-open'), false);
+  button.dispatchEvent(new window.Event('click', { bubbles: true }));
+  document
+    .querySelector('main')!
+    .dispatchEvent(new window.Event('click', { bubbles: true }));
+  assert.equal(container.hasAttribute('data-mobile-search-open'), false);
+  const shortcut = new window.Event('keydown', {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.assign(shortcut, { key: 'k', ctrlKey: true });
+  document.querySelector('main')!.dispatchEvent(shortcut);
+  assert.ok(container.hasAttribute('data-mobile-search-open'));
+});
+
+test('mobile hub dropdowns open on tap and stay open when crossing wrapped rows', async (t) => {
+  const { document, window } = page('bosses/amascut/');
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({ matches: false }),
+  });
+  t.after(() => {
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+  let address = new URL(url('/bosses/amascut/'), 'https://local');
+  initializeHub(document.querySelector<HTMLElement>('[data-hub]')!, {
+    get location() {
+      return address;
+    },
+    history: {
+      pushState(_state: unknown, _title: string, href: string) {
+        address = new URL(href, address);
+      },
+    },
+    addEventListener() {},
+    requestAnimationFrame() {
+      return 0;
+    },
+  } as unknown as Window);
+  const tab = document.querySelector<HTMLElement>('[data-tab][aria-haspopup]')!;
+  const item = tab.closest('.hub-tab-item')!;
+  const menu = document.querySelector<HTMLElement>(
+    `[data-menu="${tab.dataset.tab}"]`,
+  )!;
+  const pointer = (type: string) => {
+    const event = new window.Event(type);
+    Object.assign(event, { pointerType: 'mouse' });
+    item.dispatchEvent(event);
+  };
+  pointer('pointerenter');
+  assert.equal(menu.hidden, true);
+  tab.dispatchEvent(
+    new window.Event('click', { bubbles: true, cancelable: true }),
+  );
+  assert.equal(menu.hidden, false);
+  assert.equal(tab.getAttribute('aria-expanded'), 'true');
+  pointer('pointerleave');
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(menu.hidden, false);
+  const choice = menu.querySelector<HTMLElement>('[data-choice]')!;
+  choice.dispatchEvent(
+    new window.Event('click', { bubbles: true, cancelable: true }),
+  );
+  assert.equal(menu.hidden, true);
+  assert.equal(tab.getAttribute('aria-expanded'), 'false');
+  assert.equal(choice.getAttribute('aria-checked'), 'true');
+});
+
+test('clicking a hover-opened desktop hub dropdown pins it open until dismissed', async (t) => {
+  const { document, window } = page('bosses/amascut/');
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({ matches: true }),
+  });
+  t.after(() => {
+    delete (window as unknown as { matchMedia?: unknown }).matchMedia;
+  });
+  const address = new URL(url('/bosses/amascut/'), 'https://local');
+  initializeHub(document.querySelector<HTMLElement>('[data-hub]')!, {
+    location: address,
+    history: { pushState() {} },
+    addEventListener() {},
+    requestAnimationFrame() {
+      return 0;
+    },
+  } as unknown as Window);
+  const tab = document.querySelector<HTMLElement>('[data-tab][aria-haspopup]')!;
+  const item = tab.closest('.hub-tab-item')!;
+  const menu = document.querySelector<HTMLElement>(
+    `[data-menu="${tab.dataset.tab}"]`,
+  )!;
+  const pointer = (type: string) => {
+    const event = new window.Event(type);
+    Object.assign(event, { pointerType: 'mouse' });
+    item.dispatchEvent(event);
+  };
+  pointer('pointerenter');
+  assert.equal(menu.hidden, false);
+  pointer('pointerleave');
+  tab.dispatchEvent(
+    new window.Event('click', { bubbles: true, cancelable: true }),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  assert.equal(menu.hidden, false);
+  tab.dispatchEvent(
+    new window.Event('click', { bubbles: true, cancelable: true }),
+  );
+  assert.equal(menu.hidden, true);
 });

@@ -155,6 +155,14 @@ export function initializePresetCarousel(root: HTMLElement) {
   root.querySelector<HTMLElement>('.preset-carousel-controls')!.hidden = false;
   root.dataset.carouselReady = 'true';
   display(0);
+  return () => {
+    view?.removeEventListener('resize', update);
+    root.ownerDocument.removeEventListener('pvme:guide-change', update);
+    root
+      .querySelectorAll<HTMLIFrameElement>('iframe[data-media-src]')
+      .forEach((frame) => syncPlayer(frame, false));
+    delete root.dataset.carouselReady;
+  };
 }
 export function initializeStandaloneMedia(
   root: Document | HTMLElement = document,
@@ -172,6 +180,14 @@ export function initializeStandaloneMedia(
     .forEach((video) => {
       if (video.closest('[hidden]') && !video.paused) video.pause?.();
     });
+}
+export function disposePreviewMedia(root: HTMLElement) {
+  root
+    .querySelectorAll<HTMLIFrameElement>('iframe[data-media-src]')
+    .forEach((frame) => syncPlayer(frame, false));
+  root.querySelectorAll<HTMLVideoElement>('video').forEach((video) => {
+    if (!video.paused) video.pause?.();
+  });
 }
 if (typeof document !== 'undefined') {
   document

@@ -13,13 +13,14 @@ const acronyms: Record<string, string> = {
 };
 
 export function pageLinkTitle(title: string): string {
-  return title.replace(
-    /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu,
-    (word) =>
+  return title
+    .replace(/^> +/, '')
+    .replace(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu, (word) =>
       /^ed\d+$/i.test(word)
         ? word.toUpperCase()
-        : acronyms[word.toLowerCase()] ?? word[0].toUpperCase() + word.slice(1),
-  );
+        : (acronyms[word.toLowerCase()] ??
+          word[0].toUpperCase() + word.slice(1)),
+    );
 }
 
 // Work on text nodes so formatting, emoji and destinations remain intact.

@@ -1,7 +1,10 @@
 ---
 import type { Guide } from '../lib/catalogue';
 import Icon from './Icon.astro';
+import { guideEditorHref } from '../lib/guide-editor';
 const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
+const inlineEditing =
+  import.meta.env.DEV && process.env.PVME_INLINE_EDITING === '1';
 ---
 
 <div
@@ -10,13 +13,70 @@ const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
   data-guide-path={guide.path}
   data-guide-title={guide.title}
 >
+  <details class="guide-edit-menu">
+    <summary aria-label="Edit page">
+      <Icon name="contribute" size={16} />
+      <span class="guide-action-label">Edit Page</span>
+      <span class="guide-action-mobile-label">Edit</span>
+      <span aria-hidden="true">▾</span>
+    </summary>
+    <div class="guide-edit-options">
+      <button
+        type="button"
+        disabled={!inlineEditing}
+        title={
+          !inlineEditing
+            ? 'Inline editing is available in local editing mode'
+            : undefined
+        }
+        data-inline-edit-path={inlineEditing ? guide.path : undefined}
+        data-inline-edit-title={inlineEditing ? guide.title : undefined}
+      >
+        Edit (in place)
+      </button>
+      <a
+        data-guide-editor-external
+        href={guideEditorHref(guide)}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Edit (in Guide Editor) <Icon name="external" size={14} />
+      </a>
+    </div>
+  </details>
   <button
     type="button"
     class="guide-suggest"
     data-suggest-improvement
+    aria-label="Suggest improvement"
     aria-haspopup="dialog"
     aria-controls="suggestion-dialog"
   >
-    <Icon name="suggest" size={18} /> Suggest improvement
+    <Icon name="suggest" size={18} />
+    <span class="guide-action-label">Suggest improvement</span>
+    <span class="guide-action-mobile-label">Suggest</span>
   </button>
 </div>
+<script>
+  document.addEventListener('click', (event) => {
+    for (const menu of document.querySelectorAll<HTMLDetailsElement>(
+      '.guide-edit-menu[open]',
+    )) {
+      const target = event.target as Element;
+      if (
+        !menu.contains(target) ||
+        target.closest('.guide-edit-options button')
+      )
+        menu.open = false;
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    for (const menu of document.querySelectorAll<HTMLDetailsElement>(
+      '.guide-edit-menu[open]',
+    )) {
+      menu.open = false;
+      menu.querySelector<HTMLElement>('summary')?.focus();
+    }
+  });
+</script>

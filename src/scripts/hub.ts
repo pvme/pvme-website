@@ -29,6 +29,10 @@ export function initializeHub(root: HTMLElement, browser: HubBrowser = window) {
     current: MenuChoice,
     active = tabs[0].dataset.tab!,
     open: string | undefined;
+  const supportsHover = () =>
+    doc.defaultView?.matchMedia?.(
+      '(min-width: 761px) and (hover: hover) and (pointer: fine)',
+    ).matches ?? true;
   let hoverOpened: string | undefined;
   let hoverCloseTimer: ReturnType<typeof setTimeout> | undefined;
   const cancelHoverClose = () => {
@@ -132,15 +136,32 @@ export function initializeHub(root: HTMLElement, browser: HubBrowser = window) {
         });
     }
     if (panel?.dataset.editorUrl) {
-      for (const editLink of doc.querySelectorAll<HTMLAnchorElement>(
-        '[data-guide-edit]',
+      for (const link of doc.querySelectorAll<HTMLAnchorElement>(
+        '[data-guide-editor-external]',
+      ))
+        link.href = panel.dataset.editorUrl;
+      for (const actions of doc.querySelectorAll<HTMLElement>(
+        '.site-header [data-guide-actions]',
       )) {
-        editLink.href = panel.dataset.editorUrl;
-        editLink.setAttribute(
-          'aria-label',
-          `Edit ${panel.dataset.guideTitle} in Guide Editor`,
-        );
+        actions.dataset.guidePath = panel.dataset.guidePath || '';
+        actions.dataset.guideTitle = panel.dataset.guideTitle || '';
       }
+      if (import.meta.env?.DEV) {
+        for (const trigger of doc.querySelectorAll<HTMLElement>(
+          '[data-inline-edit-path]',
+        )) {
+          if (trigger.closest('[data-guide-panel]')) continue;
+          trigger.dataset.inlineEditPath = panel.dataset.guidePath || '';
+          trigger.dataset.inlineEditTitle = panel.dataset.guideTitle || '';
+        }
+      }
+      for (const pencil of doc.querySelectorAll<HTMLElement>(
+        '[data-guide-edit]',
+      ))
+        pencil.setAttribute(
+          'aria-label',
+          `Edit ${panel.dataset.guideTitle} in place`,
+        );
     }
     const status = root.querySelector<HTMLElement>('[data-reader-status]')!;
     status.hidden = !selected;
@@ -220,7 +241,7 @@ export function initializeHub(root: HTMLElement, browser: HubBrowser = window) {
       const item = tab.closest<HTMLElement>('.hub-tab-item')!;
       const menu = root.querySelector<HTMLElement>(`[data-menu="${type}"]`)!;
       item.addEventListener('pointerenter', (event) => {
-        if (event.pointerType !== 'mouse') return;
+        if (event.pointerType !== 'mouse' || !supportsHover()) return;
         cancelHoverClose();
         if (open !== type) {
           toggle(type);
@@ -228,10 +249,21 @@ export function initializeHub(root: HTMLElement, browser: HubBrowser = window) {
         }
       });
       item.addEventListener('pointerleave', (event) => {
-        if (event.pointerType !== 'mouse' || open !== type) return;
+        if (
+          event.pointerType !== 'mouse' ||
+          !supportsHover() ||
+          open !== type ||
+          hoverOpened !== type
+        )
+          return;
         cancelHoverClose();
         hoverCloseTimer = setTimeout(() => {
-          if (open === type && !menu.contains(doc.activeElement)) close();
+          if (
+            open === type &&
+            hoverOpened === type &&
+            !menu.contains(doc.activeElement)
+          )
+            close();
         }, 180);
       });
     });
@@ -261,8 +293,10 @@ export function initializeHub(root: HTMLElement, browser: HubBrowser = window) {
     const type = target.dataset.tab!;
     if (target.hasAttribute('aria-haspopup')) {
       // The first click after hovering should keep the newly opened menu open.
-      if (open === type && hoverOpened === type) hoverOpened = undefined;
-      else toggle(type);
+      if (open === type && hoverOpened === type) {
+        cancelHoverClose();
+        hoverOpened = undefined;
+      } else toggle(type);
     } else
       select(
         type,

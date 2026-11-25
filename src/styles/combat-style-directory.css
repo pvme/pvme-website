@@ -181,11 +181,6 @@
   font-size: 14px;
   margin-top: 38px;
 }
-@media (min-width: 1201px) {
-  .style-directory-breadcrumbs {
-    display: none;
-  }
-}
 @media (max-width: 1200px) {
   .combat-style-directory {
     padding-top: 85px;

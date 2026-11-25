@@ -1,0 +1,45 @@
+---
+---
+
+<dialog
+  data-review-dialog
+  class="inline-dialog inline-review-dialog"
+  aria-labelledby="inline-review-title"
+>
+  <header>
+    <h2 id="inline-review-title">Review changes</h2>
+    <button type="button" data-review-close aria-label="Close review">
+      ×
+    </button>
+  </header>
+  <p data-review-guide></p>
+  <p class="review-discard-hint">
+    Click highlighted text to discard that edit.
+  </p>
+  <pre
+    class="source-diff"
+    data-source-diff
+    aria-label="Changes: removed lines in red, added lines in green"
+    tabindex="0"
+  ></pre>
+  <p data-review-error role="alert"></p>
+  <p data-review-empty role="status" hidden>
+    All changes discarded.
+  </p>
+  <form data-prepare-form>
+    <label>
+      Summary
+      <input name="title" required maxlength="120" />
+    </label>
+    <label>
+      Reason for the change
+      <textarea name="notes" required maxlength="2000" rows="2"></textarea>
+    </label>
+    <div class="inline-actions">
+      <button type="submit" data-prepare-update>
+        Submit for review
+      </button>
+    </div>
+  </form>
+  <p data-prepare-status role="status"></p>
+</dialog>

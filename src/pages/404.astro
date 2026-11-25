@@ -1,20 +1,14 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import DirectoryLayout from '../layouts/DirectoryLayout.astro';
 import { url } from '../lib/catalogue';
 ---
 
-<Layout title="Guide not found">
-  <div class="page">
-    <header class="page-heading">
-      <span class="eyebrow">404</span>
-      <h1>A different path.</h1>
-      <p>
-        This page could not be found. Explore the directories to find your
-        guide.
-      </p>
-      <a class="button" href={url('/bosses/')}>
-        Browse bosses →
-      </a>
-    </header>
-  </div>
-</Layout>
+<DirectoryLayout
+  title="Guide not found"
+  heading="A different path."
+  description="This page could not be found. Explore the directories to find your guide."
+>
+  <a class="button" href={url('/bosses/')}>
+    Browse bosses →
+  </a>
+</DirectoryLayout>

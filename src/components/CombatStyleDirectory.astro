@@ -1,5 +1,5 @@
 ---
-import Breadcrumbs from './Breadcrumbs.astro';
+import DirectoryLayout from '../layouts/DirectoryLayout.astro';
 import Icon from './Icon.astro';
 import ResourceIcon from './ResourceIcon.astro';
 import { url } from '../lib/catalogue';
@@ -21,40 +21,36 @@ const groups = [
 ];
 ---
 
-<div
-  class="page combat-style-directory"
-  data-combat-style-directory
-  hidden={!selected}
+<DirectoryLayout
+  title={`${selectedStyle || 'Combat style'} guides`}
+  heading={selectedStyle || 'Combat style'}
+  description={
+    selected
+      ? `${selected.count} guides covering bosses, Slayer, AFK methods and combat progression`
+      : ''
+  }
+  pageClass="combat-style-directory"
+  headingClass="style-directory-heading"
+  pageAttributes={{ 'data-combat-style-directory': true, hidden: !selected }}
+  titleAttributes={{ 'data-style-directory-title': true }}
+  descriptionAttributes={{ 'data-style-directory-summary': true }}
+  breadcrumbs={[
+    { label: 'Home', href: '/' },
+    { label: 'Resources', href: '/resources/' },
+    { label: selectedStyle || 'Combat style' },
+  ]}
 >
-  <div class="style-directory-breadcrumbs">
-    <Breadcrumbs
-      items={[
-        { label: 'Home', href: '/' },
-        { label: 'Resources', href: '/resources/' },
-        { label: selectedStyle || 'Combat style' },
-      ]}
+  <span slot="icon" class="style-directory-icon">
+    <img
+      data-style-directory-icon
+      src={url(
+        `/icons/styles/${(selectedStyle || 'Necromancy').toLowerCase()}.png`,
+      )}
+      width="54"
+      height="54"
+      alt=""
     />
-  </div>
-  <header class="style-directory-heading">
-    <span class="style-directory-icon">
-      <img
-        data-style-directory-icon
-        src={url(
-          `/icons/styles/${(selectedStyle || 'Necromancy').toLowerCase()}.png`,
-        )}
-        width="54"
-        height="54"
-        alt=""
-      />
-    </span>
-    <div>
-      <h1 data-style-directory-title>{selectedStyle || 'Combat style'}</h1>
-      <p data-style-directory-summary>
-        {selected &&
-          `${selected.count} guides covering bosses, Slayer, AFK methods and combat progression`}
-      </p>
-    </div>
-  </header>
+  </span>
   <label class="style-directory-search">
     <Icon name="search" size={25} />
     <input
@@ -126,5 +122,5 @@ const groups = [
   <a class="style-directory-all" href={url('/resources/')}>
     Browse Resources →
   </a>
-</div>
+</DirectoryLayout>
 <script src="../scripts/combat-style-directory.ts" />

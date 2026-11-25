@@ -6,6 +6,7 @@ const resultId = compact ? 'site-search-results' : 'page-search-results';
 ---
 
 <div
+  id={compact ? 'site-search' : 'page-search'}
   class:list={['search', { prominent, compact }]}
   data-search
   data-index={url('/search-index.json')}

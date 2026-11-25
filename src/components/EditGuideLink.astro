@@ -1,18 +1,25 @@
 ---
 import type { Guide } from '../lib/catalogue';
-import { guideEditorHref } from '../lib/guide-editor';
 import Icon from './Icon.astro';
 const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
+const inlineEditing =
+  import.meta.env.DEV && process.env.PVME_INLINE_EDITING === '1';
 ---
 
-<a
+<button
+  type="button"
   class="guide-edit"
   data-guide-edit
-  href={guideEditorHref(guide)}
-  target="_blank"
-  rel="noopener noreferrer"
-  aria-label={`Edit ${guide.title} in Guide Editor`}
+  data-inline-edit-path={inlineEditing ? guide.path : undefined}
+  data-inline-edit-title={inlineEditing ? guide.title : undefined}
+  disabled={!inlineEditing}
+  title={
+    inlineEditing
+      ? 'Edit this page'
+      : 'Inline editing is available in local editing mode'
+  }
+  aria-label={`Edit ${guide.title} in place`}
 >
   <Icon name="contribute" size={17} />
-  <span class="guide-edit-label">Edit page in Guide Editor</span>
-</a>
+  <span class="guide-edit-label">Edit this page</span>
+</button>

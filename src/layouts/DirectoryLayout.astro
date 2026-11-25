@@ -1,0 +1,51 @@
+---
+import SiteShell from '../components/SiteShell.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+interface Props {
+  title: string;
+  heading?: string;
+  description: string;
+  activePath?: string;
+  pageClass?: string;
+  pageAttributes?: Record<string, string | boolean>;
+  breadcrumbs?: { label: string; href?: string }[];
+  headingClass?: string;
+  titleAttributes?: Record<string, string | boolean>;
+  descriptionAttributes?: Record<string, string | boolean>;
+}
+const {
+  title,
+  heading = title,
+  description,
+  activePath,
+  pageClass = 'landing-page',
+  pageAttributes = {},
+  breadcrumbs = [{ label: title }],
+  headingClass = 'landing-hero',
+  titleAttributes = {},
+  descriptionAttributes = {},
+} = Astro.props;
+---
+
+<SiteShell
+  title={title}
+  description={description}
+  activePath={activePath}
+  breadcrumbs={breadcrumbs}
+>
+  <div
+    class:list={['page', 'directory-page', pageClass]}
+    data-page-layout="directory"
+    {...pageAttributes}
+  >
+    <Breadcrumbs items={breadcrumbs} />
+    <header class:list={['page-heading', headingClass]}>
+      <slot name="icon" />
+      <div class="directory-heading-copy">
+        <h1 {...titleAttributes}>{heading}</h1>
+        {description && <p {...descriptionAttributes}>{description}</p>}
+      </div>
+    </header>
+    <slot />
+  </div>
+</SiteShell>

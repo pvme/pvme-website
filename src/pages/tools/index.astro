@@ -1,5 +1,5 @@
 ---
-import LandingLayout from '../../layouts/LandingLayout.astro';
+import DirectoryLayout from '../../layouts/DirectoryLayout.astro';
 import ResourceGuideBrowser from '../../components/ResourceGuideBrowser.astro';
 import { getCatalogue } from '../../lib/catalogue';
 import { websiteCollections } from '../../lib/collections';
@@ -36,7 +36,7 @@ const categories = collections.flatMap((collection) =>
 );
 ---
 
-<LandingLayout
+<DirectoryLayout
   title="Tools"
   pageClass="tools-page"
   description="PvME tools, built by players for players"
@@ -48,4 +48,4 @@ const categories = collections.flatMap((collection) =>
     categoryTitle="Tools"
     entryLabel="tools"
   />
-</LandingLayout>
+</DirectoryLayout>
