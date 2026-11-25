@@ -157,7 +157,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
 .inline-editor-secondary:empty {
   display: none;
 }
-.inline-toolbar .inline-editor-secondary > :is(button, a) {
+.inline-toolbar .inline-editor-secondary > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -185,7 +185,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   background: #48252b;
   border-color: #75414c;
 }
-.inline-toolbar .inline-editor-secondary > :is(button, a):not(:disabled):hover {
+.inline-toolbar .inline-editor-secondary > button:not(:disabled):hover {
   border-color: #3c536d;
   background: #233850;
 }
@@ -276,7 +276,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   border-radius: 8px;
   box-shadow: 0 12px 35px #0005;
 }
-.inline-editor-menu > :is(button, a) {
+.inline-editor-menu > button {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -294,7 +294,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   text-decoration: none;
   margin: 0;
 }
-.inline-editor-menu > :is(button, a):not(:disabled):hover {
+.inline-editor-menu > button:not(:disabled):hover {
   background: #233b56;
   border-color: transparent;
 }
@@ -987,7 +987,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
     padding: 5px 9px;
   }
   .inline-toolbar button,
-  .inline-toolbar .inline-editor-secondary > :is(button, a) {
+  .inline-toolbar .inline-editor-secondary > button {
     height: 44px;
     min-height: 44px;
     padding-inline: 14px;

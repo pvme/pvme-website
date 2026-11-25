@@ -28,27 +28,3 @@ export function combatTextParts(text: string) {
     .filter(Boolean)
     .map((text) => ({ text, file: combatStyleFile(text) }));
 }
-export function appendCombatText(
-  element: HTMLElement,
-  text: string,
-  assetBase: string,
-) {
-  const doc = element.ownerDocument;
-  for (const part of combatTextParts(text)) {
-    if (!part.file) {
-      element.append(doc.createTextNode(part.text));
-      continue;
-    }
-    const label = doc.createElement('span');
-    label.className = 'combat-label';
-    const img = doc.createElement('img');
-    img.src = assetBase + part.file;
-    img.alt = '';
-    img.className = 'combat-style-icon';
-    img.width = 22;
-    img.height = 22;
-    img.setAttribute('aria-hidden', 'true');
-    label.append(img, doc.createTextNode(part.text));
-    element.append(label);
-  }
-}

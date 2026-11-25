@@ -1,3 +1,5 @@
+import { writeClipboard } from '../lib/clipboard';
+
 export function initializeHeadingLinks(
   root: Document | HTMLElement = document,
   options: {
@@ -8,32 +10,7 @@ export function initializeHeadingLinks(
   const doc = root.ownerDocument || (root as Document);
   const view = doc.defaultView;
   const copy =
-    options.writeText ||
-    (async (value: string) => {
-      try {
-        if (view?.navigator.clipboard?.writeText) {
-          await view.navigator.clipboard.writeText(value);
-          return;
-        }
-      } catch {
-        /* Fall back when clipboard access is unavailable. */
-      }
-      const active = doc.activeElement as HTMLElement | null;
-      const field = doc.createElement('textarea');
-      field.value = value;
-      field.readOnly = true;
-      field.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-      doc.body.append(field);
-      field.select();
-      let copied = false;
-      try {
-        copied = doc.execCommand?.('copy') || false;
-      } finally {
-        field.remove();
-        active?.focus?.({ preventScroll: true });
-      }
-      if (!copied) throw new Error('Clipboard unavailable');
-    });
+    options.writeText || ((value: string) => writeClipboard(doc, value));
   let statusTimer: ReturnType<typeof setTimeout> | undefined;
   root.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6').forEach((heading) => {
     // Cards already have a destination; avoid nesting links inside their links.

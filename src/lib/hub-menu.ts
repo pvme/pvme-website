@@ -186,11 +186,3 @@ export function tabChoices(
     );
   });
 }
-export function overviewChoice(
-  guides: MenuGuide[],
-  subject: string,
-): MenuChoice | undefined {
-  return navigationSettings.overview
-    ? tabChoices(guides, navigationSettings.overview.tab, subject)[0]
-    : undefined;
-}

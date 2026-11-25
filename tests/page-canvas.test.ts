@@ -19,7 +19,7 @@ import {
 import { renderCanvasPreview } from '../src/scripts/canvas-preview';
 import { PageCanvasEditor } from '../src/scripts/page-canvas-editor';
 import { preserveSourceLineEndings } from '../src/lib/source-diff';
-import { newEmojiToken } from '../src/lib/emoji-token';
+import { newEmojiToken } from '../src/lib/rich-token';
 
 const session = async (source: string) =>
   (await createTestGuide(source, 'test/canvas.txt')).session;

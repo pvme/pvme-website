@@ -24,7 +24,7 @@ import {
 } from './source-map';
 import type { LoadedGuideSource } from './guide-source-provider';
 import { validatePageSource } from './page-canvas';
-import { inlineTokenFromId, newLinkToken } from './emoji-token';
+import { inlineTokenFromId, newLinkToken } from './rich-token';
 
 export interface PendingChange {
   entryId: string;

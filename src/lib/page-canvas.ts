@@ -451,31 +451,6 @@ export function changeEmbedField(
   });
   return result;
 }
-export function replaceEmbedValue(block: CanvasBlock, value: unknown): string {
-  // JSON may contain braces and escaped quotes inside strings; scan its lexical envelope.
-  const start = block.source.search(/[\[{]/);
-  let depth = 0,
-    quoted = false,
-    escaped = false;
-  for (let index = start; index >= 0 && index < block.source.length; index++) {
-    const char = block.source[index];
-    if (quoted) {
-      if (escaped) escaped = false;
-      else if (char === '\\') escaped = true;
-      else if (char === '"') quoted = false;
-      continue;
-    }
-    if (char === '"') quoted = true;
-    else if (char === '{' || char === '[') depth++;
-    else if ((char === '}' || char === ']') && --depth === 0)
-      return (
-        block.source.slice(0, start) +
-        JSON.stringify(value, null, 2).replace(/\n/g, sourceEol(block.source)) +
-        block.source.slice(index + 1)
-      );
-  }
-  throw new Error('Repair this embed using its source editor first');
-}
 export function blockFields(block: CanvasBlock): CanvasField[] {
   if (block.node?.type === 'embed' && block.node.valid)
     return embedFields(block.node.value);

@@ -34,10 +34,7 @@ h3,
   font-weight: 600;
 }
 .sidebar nav a,
-.entity-card,
-.guide-choices button,
-.style-choices button,
-.variant-choices button {
+.entity-card {
   transition:
     background-color 0.16s,
     border-color 0.16s,
@@ -62,19 +59,6 @@ h3,
   width: 24px;
   height: 24px;
 }
-.guide-choice-title .combat-style-icon {
-  width: 20px;
-  height: 20px;
-}
-.guide-choice-meta .combat-style-icon {
-  width: 17px;
-  height: 17px;
-}
-.style-choices button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
 .page-heading h1 {
   font-size: 42px;
   font-weight: 700;
@@ -98,46 +82,6 @@ h3,
 }
 .hub-art {
   opacity: 0.19;
-}
-.guide-choice-title {
-  font-weight: 550;
-  font-size: 15px;
-  line-height: 1.6;
-}
-.guide-choice-meta {
-  font-size: 13px;
-  line-height: 1.8;
-  color: #a1b5ce;
-}
-.guide-choices button {
-  background: #142237;
-  border-color: #2b405a;
-  padding: 13px 39px 13px 15px;
-}
-.guide-choices button[aria-pressed='true'] {
-  background: #1c324c;
-  border-color: #709bc9;
-  box-shadow: inset 3px 0 #86b8eb;
-}
-.guide-choices {
-  gap: 10px;
-  max-height: 260px;
-}
-.guide-choice-indicator {
-  right: 14px;
-}
-.style-choices button,
-.variant-choices button {
-  border-color: #344b66;
-}
-.style-choices button[aria-pressed='true'],
-.variant-choices button[aria-pressed='true'] {
-  background: #233c57;
-  border-color: #729dcc;
-  box-shadow: none;
-}
-.hub-picker {
-  margin-bottom: 27px;
 }
 .guide-content {
   line-height: 1.85;
@@ -168,18 +112,10 @@ h3,
   font-weight: 600;
   background: #263c57;
 }
-.eyebrow,
 .toc > p,
 .style-nav > p {
   letter-spacing: 1.4px;
   font-weight: 600;
-}
-.directory-heading h1 {
-  font-size: 50px;
-  font-weight: 750;
-}
-.directory-heading p {
-  font-size: 20px;
 }
 .directory-search input {
   font-size: 20px;
@@ -206,28 +142,6 @@ h3,
   box-shadow: none;
   border-color: #2b4057;
 }
-.home .hero h1 {
-  font-family: var(--font-heading);
-  font-size: clamp(46px, 4.5vw, 66px);
-  font-weight: 750;
-  letter-spacing: -2.8px;
-  line-height: 1.12;
-}
-.hero p {
-  font-size: 17px;
-  line-height: 1.85;
-}
-.home .hero {
-  padding-bottom: 48px;
-}
-.home .category-grid > a {
-  background: #142337;
-  border-color: #2c4059;
-}
-.home .category-grid h3 {
-  font-size: 19px;
-  font-weight: 650;
-}
 .search kbd {
   font-family: var(--font-body);
 }
@@ -238,9 +152,6 @@ h3,
   font-weight: 600;
 }
 @media (max-width: 1000px) {
-  .guide-choices {
-    max-height: 300px;
-  }
   .entity-card h3 {
     font-size: 22px;
   }
@@ -260,24 +171,8 @@ h3,
   .page-heading p {
     font-size: 16px;
   }
-  .directory-heading h1 {
-    font-size: 40px;
-  }
-  .directory-heading p {
-    font-size: 17px;
-  }
-  .guide-choices {
-    max-height: 340px;
-  }
-  .hub-picker {
-    margin-bottom: 22px;
-  }
   .guide-content h2 {
     font-size: 23px;
-  }
-  .home .hero h1 {
-    font-size: 48px;
-    letter-spacing: -2px;
   }
   .entity-card h3 {
     font-size: 23px;
@@ -285,10 +180,7 @@ h3,
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar nav a,
-  .entity-card,
-  .guide-choices button,
-  .style-choices button,
-  .variant-choices button {
+  .entity-card {
     transition: none;
   }
 }

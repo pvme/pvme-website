@@ -10,7 +10,7 @@ import { parseGuide } from '@pvme/guide-parser';
 import { renderGuide } from '../src/lib/renderer';
 import { parseHTML } from 'linkedom';
 import { DraftStorage } from '../src/lib/draft-storage';
-import { newEmojiToken } from '../src/lib/emoji-token';
+import { newEmojiToken } from '../src/lib/rich-token';
 import {
   readRichLine,
   writeRichLine,

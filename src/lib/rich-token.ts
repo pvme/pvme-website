@@ -1,8 +1,7 @@
 import { parseGuide } from '@pvme/guide-parser';
 import type { LineToken } from './source-lines';
 
-/** Only explicit Discord emoji literals can be introduced as new rich tokens.
- * Original links, references and other source tokens retain their existing guards. */
+/** Validate explicit Discord emoji literals before creating a rich-editor token. */
 export function newEmojiToken(raw: string): LineToken | undefined {
   if (!/^<a?:[A-Za-z0-9_-]+:\d{5,25}>$/.test(raw)) return;
   const block = parseGuide(raw).messages[0]?.blocks[0];
@@ -12,7 +11,7 @@ export function newEmojiToken(raw: string): LineToken | undefined {
   return { id: `new-emoji:${raw}`, raw, node };
 }
 
-export function emojiTokenFromId(id: string): LineToken | undefined {
+function emojiTokenFromId(id: string): LineToken | undefined {
   return id.startsWith('new-emoji:') ? newEmojiToken(id.slice(10)) : undefined;
 }
 

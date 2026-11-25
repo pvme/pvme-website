@@ -1,3 +1,4 @@
+import { writeClipboard } from '../lib/clipboard';
 import type { ReferenceIndexEntry } from '../lib/references';
 import { searchEntries } from '../lib/search';
 import { initializeHeadingLinks } from './heading-links';
@@ -351,22 +352,9 @@ export function initializeResources(
     url.searchParams.set('tab', 'reference');
     url.searchParams.set('ref', selected);
     try {
-      if (options.writeText) await options.writeText(url.href);
-      else if (view.navigator.clipboard?.writeText)
-        await view.navigator.clipboard.writeText(url.href);
-      else {
-        const field = doc.createElement('textarea');
-        field.value = url.href;
-        field.style.cssText = 'position:fixed;opacity:0';
-        doc.body.append(field);
-        field.select();
-        try {
-          if (!doc.execCommand('copy')) throw Error('Clipboard unavailable');
-        } finally {
-          field.remove();
-          copy.focus();
-        }
-      }
+      await (
+        options.writeText || ((value: string) => writeClipboard(doc, value))
+      )(url.href);
       copy.textContent = 'Link copied';
     } catch {
       copy.textContent = 'Copy unavailable';

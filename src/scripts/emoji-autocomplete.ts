@@ -8,7 +8,7 @@ import {
   emojiImage,
   type EmojiCompletion,
 } from '../lib/emoji-autocomplete';
-import { newEmojiToken } from '../lib/emoji-token';
+import { newEmojiToken } from '../lib/rich-token';
 
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 interface Context {

@@ -59,27 +59,22 @@ export function initializeInlineEditor(
     get('[data-editor-review] span').textContent = mobileToolbar?.matches
       ? 'Submit'
       : 'Submit changes';
-    for (const selector of ['[data-editor-discard]']) {
-      const action = get(selector);
-      if (action.parentElement === target) continue;
+    const action = get('[data-editor-discard]');
+    if (action.parentElement !== target) {
       const focused = doc.activeElement === action;
       if (target === menu) menu.insertBefore(action, recovery);
       else if (target === actions)
         actions.insertBefore(action, get('[data-editor-exit]'));
       else secondary.append(action);
       if (recovery.hidden) options.open = false;
-      if (focused) {
-        const focusTarget =
-          target === menu
-            ? options.querySelector<HTMLElement>('summary')
-            : action;
-        focusTarget?.focus({ preventScroll: true });
-      }
+      if (focused)
+        (target === menu
+          ? options.querySelector<HTMLElement>('summary')
+          : action
+        )?.focus({ preventScroll: true });
     }
     options.hidden =
-      (!!wideToolbar?.matches || !!mobileToolbar?.matches) &&
-      get('[data-editor-canvas]').hidden &&
-      recovery.hidden;
+      (!!wideToolbar?.matches || !!mobileToolbar?.matches) && recovery.hidden;
   };
   wideToolbar?.addEventListener?.('change', arrangeToolbar);
   mobileToolbar?.addEventListener?.('change', arrangeToolbar);
@@ -220,9 +215,6 @@ export function initializeInlineEditor(
       !session.count || !!blocked;
     get<HTMLButtonElement>('[data-editor-discard]').disabled =
       !session.count || !!blocked;
-    get<HTMLButtonElement>('[data-editor-canvas]').disabled =
-      !!blocked || !!canvas;
-    get('[data-editor-canvas]').hidden = !!canvas;
     arrangeToolbar();
   };
   const openCanvas = () => {
@@ -231,10 +223,6 @@ export function initializeInlineEditor(
     updateDraftPreview(doc, session, false);
     canvas = new PageCanvasEditor(doc, activeArticle, session, () => update());
   };
-  get('[data-editor-canvas]').addEventListener('click', () => {
-    openCanvas();
-    update(false);
-  });
   const showRecovery = () => {
     get('[data-draft-recovery]').hidden = !blocked;
     message('[data-draft-message]', blocked?.message || '');

@@ -1,4 +1,4 @@
-import { newLinkToken } from './emoji-token';
+import { newLinkToken } from './rich-token';
 import {
   normalizeRichLine,
   type RichLine,

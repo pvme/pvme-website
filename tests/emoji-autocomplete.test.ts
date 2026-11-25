@@ -8,7 +8,7 @@ import {
   emojiSource,
   emojiCatalogue,
 } from '../src/lib/emoji-autocomplete';
-import { newEmojiToken } from '../src/lib/emoji-token';
+import { newEmojiToken } from '../src/lib/rich-token';
 import { EmojiAutocomplete } from '../src/scripts/emoji-autocomplete';
 
 test('emoji names, aliases and search ordering match the Guide Editor catalogue', () => {

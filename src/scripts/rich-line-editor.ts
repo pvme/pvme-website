@@ -1,5 +1,5 @@
 import type { EditSession, PendingChange } from '../lib/edit-session';
-import { inlineTokenFromId, newLinkToken } from '../lib/emoji-token';
+import { inlineTokenFromId, newLinkToken } from '../lib/rich-token';
 import {
   linkSelection,
   selectionMarkState,
@@ -1203,7 +1203,7 @@ export class RichLineEditor {
       changes.push(session.lineChange(member.view.line.id, parts, prefixes));
     }
     if (index !== rows.length)
-      throw new Error('Original bullets must remain in source order');
+      throw new Error('Keep message lines in their original order');
     session.setChanges(changes);
   }
   private refill() {

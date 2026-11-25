@@ -106,17 +106,6 @@ main {
   max-width: none;
   padding: 25px 33px 65px 39px;
 }
-.site-search {
-  position: absolute;
-  right: 36px;
-  top: 13px;
-  width: 337px;
-  z-index: 20;
-}
-.site-search .search {
-  margin: 0;
-  max-width: none;
-}
 .search label {
   background: #19293e;
   border-color: #2b4362;
@@ -249,34 +238,6 @@ main {
 }
 .hub-tabs a:hover {
   background: #20334e;
-}
-.guide-controls {
-  background: #16263a;
-  border-color: #2c4361;
-  margin: 0 277px 20px 0;
-  padding: 12px 15px;
-  gap: 12px;
-  border-radius: 9px;
-  align-items: center;
-}
-.guide-controls label {
-  flex: 1 1 200px;
-  gap: 8px;
-  font-size: 14px;
-  color: #b9cbe1;
-}
-.guide-controls label:only-of-type {
-  flex-direction: row;
-  align-items: center;
-}
-.guide-controls select {
-  background: #1e3757;
-  border-color: #456b97;
-  border-radius: 6px;
-  padding: 8px 10px;
-  color: #edf3ff;
-  font-size: 16px;
-  line-height: 1.4;
 }
 .source-title {
   display: none;
@@ -541,25 +502,8 @@ main {
     margin-left: 0;
   }
 }
-.source-note {
-  color: #9eb4d1;
-}
 .directory-page {
   padding-top: 105px;
-}
-.directory-heading {
-  margin-bottom: 40px;
-}
-.directory-heading h1 {
-  font-size: 56px;
-  font-weight: 800;
-  line-height: 1.15;
-  margin: 0 0 6px;
-  letter-spacing: -1.8px;
-}
-.directory-heading p {
-  font-size: 23px;
-  color: #b4d3ef;
 }
 .directory-search {
   max-width: none;
@@ -669,18 +613,8 @@ main {
   padding-top: 90px;
   max-width: 1436px;
 }
-.home .hero h1 {
-  font-family: var(--font-heading);
-  font-size: clamp(46px, 4.6vw, 68px);
-  font-weight: 700;
-  letter-spacing: -2px;
-}
 .home .entity-card h3 {
   font-size: 24px;
-}
-.home .category-grid > a {
-  background: linear-gradient(130deg, #1a2d46, #102033);
-  border-color: #304760;
 }
 .home .getting-started {
   border-color: #31475f;
@@ -723,18 +657,11 @@ body > footer {
     right: 30px;
     width: 205px;
   }
-  .guide-controls {
-    margin-right: 230px;
-  }
   .entity-card h3 {
     font-size: 24px;
   }
   .entity-card > svg {
     margin-right: 14px;
-  }
-  .site-search {
-    right: 30px;
-    width: 300px;
   }
   .breadcrumbs {
     padding-right: 310px;
@@ -755,17 +682,11 @@ body > footer {
   .toc {
     display: none;
   }
-  .guide-controls {
-    margin-right: 0;
-  }
   .entity-card {
     height: 115px;
   }
   .entity-card h3 {
     font-size: 21px;
-  }
-  .directory-heading p {
-    font-size: 19px;
   }
   .hub-tabs a {
     padding-inline: 15px;
@@ -813,16 +734,6 @@ body > footer {
   .page {
     padding: 24px 21px 45px;
   }
-  .site-search {
-    position: relative;
-    right: auto;
-    top: auto;
-    width: auto;
-    padding: 14px 21px 0;
-  }
-  .site-search .compact {
-    width: 100%;
-  }
   .search-results {
     min-width: 0;
     width: 100%;
@@ -867,17 +778,6 @@ body > footer {
   .hub-tabs a > svg {
     width: 18px;
   }
-  .guide-controls {
-    padding: 12px;
-    margin-bottom: 18px;
-  }
-  .guide-controls label {
-    flex-basis: 100%;
-    font-size: 13px;
-  }
-  .guide-controls select {
-    font-size: 15px;
-  }
   .guide-content h2 {
     font-size: 24px;
   }
@@ -886,15 +786,6 @@ body > footer {
   }
   .directory-page {
     padding-top: 32px;
-  }
-  .directory-heading {
-    margin-bottom: 25px;
-  }
-  .directory-heading h1 {
-    font-size: 42px;
-  }
-  .directory-heading p {
-    font-size: 17px;
   }
   .directory-search {
     padding-left: 15px;
@@ -940,20 +831,8 @@ body > footer {
   .home {
     padding-top: 12px;
   }
-  .home .featured {
-    grid-template-columns: 1fr;
-  }
-  .home .hero h1 {
-    font-size: 56px;
-  }
   .home .entity-card h3 {
     font-size: 24px;
-  }
-  .home .hero {
-    padding-top: 20px;
-  }
-  .home .category-grid h3 {
-    margin-top: 0;
   }
   body > footer {
     padding: 22px;

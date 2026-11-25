@@ -8,7 +8,7 @@ import {
   type SourceEdit,
 } from '@pvme/guide-parser';
 import type { GuideSourceMap } from './source-map';
-import { newEmojiToken, inlineTokenFromId, newLinkToken } from './emoji-token';
+import { newEmojiToken, inlineTokenFromId, newLinkToken } from './rich-token';
 import {
   highlightSourceDiff,
   sourceDiff,
@@ -118,7 +118,7 @@ export function normalizeRichLine(model: RichLine): RichLine {
           /[\r\n\u0000-\u001f\u007f]/.test(part.text)
         )
           throw new Error(
-            'Use Enter to continue a bullet. Control characters are not supported.',
+            'Use Enter to add a line. Control characters are not supported.',
           );
         if (!part.text) continue;
         const previous = result.at(-1);
@@ -364,7 +364,7 @@ function inlineBody(
       if (!isBulletPrefix(prefix.replace(/^(?:[ \t]*>[ \t]*)+/, '')))
         throw new Error('Use the Bullets button to change line type');
       blocks = block.items[0].children;
-    } else throw new Error('Use Enter to create a bullet');
+    } else throw new Error('Use the Bullets control to change list formatting');
   }
   blocks = blocks.filter((block) => block.type !== 'blank');
   if (!body && !blocks.length) return [];

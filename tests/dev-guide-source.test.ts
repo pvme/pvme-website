@@ -14,7 +14,7 @@ import { developmentInlineEditing } from '../scripts/dev-inline-editing.mjs';
 import { mappedSource as source, loadMappedGuide as loaded } from './helpers';
 
 test('development source access is catalogue-limited, read-only and rejects symlink escapes', () => {
-  const directory = mkdtempSync(resolve('.local/phase3-source-'));
+  const directory = mkdtempSync(resolve('.local/guide-source-'));
   const root = join(directory, 'guides'),
     outside = join(directory, 'outside');
   mkdirSync(root);
