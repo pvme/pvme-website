@@ -3,8 +3,8 @@ import { sourcePath } from './catalogue';
 import { getDiscordLinkResolver } from './discord-links';
 import type { LoadedGuideSource } from './guide-source-provider';
 
-/** Called only by the opt-in Vite development middleware. Never writes sources. */
-export function loadDevelopmentSource(
+/** Publishes only catalogue guide sources. Never writes to canonical files. */
+export function loadGuideSource(
   path: string,
   root: string,
   guides: readonly { path: string; title: string }[],

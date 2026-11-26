@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseHTML } from 'linkedom';
-import { getCatalogue, url } from '../src/lib/catalogue';
+import { getCatalogue, sourcePath, url } from '../src/lib/catalogue';
 import { renderGuide } from '../src/lib/renderer';
 import { pageLinkTitle } from '../src/lib/page-link-title';
 import { websiteCollections } from '../src/lib/collections';
@@ -13,6 +13,7 @@ import { initializeResourceGuideBrowser } from '../src/scripts/resource-guide-br
 import { initializeCombatStyleDirectory } from '../src/scripts/combat-style-directory';
 import { collectionDefinitions } from '../catalogue/src/collection-definitions';
 import { navigationSettings } from '../catalogue/src/navigation-definitions';
+import { sourceFingerprint } from '../src/lib/source-map-builder';
 import { initializeSearch } from '../src/scripts/search';
 import { initializeHub } from '../src/scripts/hub';
 
@@ -25,6 +26,11 @@ test('guide contributions live in the header and search lives in the navigation'
   assert.ok(document.querySelector('.site-header [data-suggest-improvement]'));
   const menu = document.querySelector('.site-header .guide-edit-menu')!;
   assert.ok(menu.textContent?.includes('Edit (in place)'));
+  const inlineEdit = menu.querySelector('button[data-inline-edit-path]')!;
+  assert.ok(inlineEdit);
+  assert.equal(inlineEdit.hasAttribute('disabled'), false);
+  assert.ok(document.querySelector('[data-inline-editor]'));
+  assert.ok(document.querySelector('[data-review-dialog]'));
   const external = menu.querySelector('a[data-guide-editor-external]')!;
   assert.match(external.getAttribute('href')!, /guide-editor/);
   assert.equal(external.getAttribute('target'), '_blank');
@@ -32,6 +38,35 @@ test('guide contributions live in the header and search lives in the navigation'
     assert.equal(pencil.tagName, 'BUTTON');
     assert.equal(pencil.hasAttribute('href'), false);
     assert.match(pencil.getAttribute('aria-label')!, /in place$/);
+  }
+});
+
+test('published guide sources match the exact revision rendered for editing', () => {
+  const { guides, root } = getCatalogue();
+  for (const guide of guides) {
+    const source = JSON.parse(
+      readFileSync(join('dist/guide-source', `${guide.path}.json`), 'utf8'),
+    );
+    assert.equal(source.path, guide.path);
+    assert.equal(source.repo, 'pvme/pvme-guides');
+    assert.equal(
+      source.originalText,
+      readFileSync(sourcePath(root, guide.path), 'utf8'),
+    );
+    const { document } = page(
+      new URL(guide.href, 'https://pvme.test').pathname.replace(/^\//, ''),
+    );
+    const article = [
+      ...document.querySelectorAll('[data-guide-source-hash]'),
+    ].find(
+      (article) => article.getAttribute('data-guide-source') === guide.path,
+    );
+    assert.ok(article, guide.path);
+    assert.equal(
+      article.getAttribute('data-guide-source-hash'),
+      sourceFingerprint(source.originalText),
+      guide.path,
+    );
   }
 });
 

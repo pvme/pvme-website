@@ -1,10 +1,9 @@
 ---
-import { url } from '../lib/catalogue';
+import '../styles/inline-editor.css';
 import ReviewChangesDialog from './ReviewChangesDialog.astro';
 import Icon from './Icon.astro';
 ---
 
-<link rel="stylesheet" href={url('/src/styles/inline-editor.css?direct')} />
 <header
   data-inline-editor
   hidden
@@ -107,8 +106,4 @@ import Icon from './Icon.astro';
     </button>
   </div>
 </dialog>
-<script
-  is:inline
-  type="module"
-  src={url('/src/scripts/inline-editor-dev.ts')}
-></script>
+<script src="../scripts/inline-editor-client.ts"></script>

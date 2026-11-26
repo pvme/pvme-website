@@ -3,8 +3,6 @@ import type { Guide } from '../lib/catalogue';
 import Icon from './Icon.astro';
 import { guideEditorHref } from '../lib/guide-editor';
 const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
-const inlineEditing =
-  import.meta.env.DEV && process.env.PVME_INLINE_EDITING === '1';
 ---
 
 <div
@@ -23,14 +21,8 @@ const inlineEditing =
     <div class="guide-edit-options">
       <button
         type="button"
-        disabled={!inlineEditing}
-        title={
-          !inlineEditing
-            ? 'Inline editing is available in local editing mode'
-            : undefined
-        }
-        data-inline-edit-path={inlineEditing ? guide.path : undefined}
-        data-inline-edit-title={inlineEditing ? guide.title : undefined}
+        data-inline-edit-path={guide.path}
+        data-inline-edit-title={guide.title}
       >
         Edit (in place)
       </button>

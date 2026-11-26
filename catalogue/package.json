@@ -14,7 +14,7 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
-    "@pvme/guide-parser": "^0.4.2",
+    "@pvme/guide-parser": "^0.5.0",
     "yaml": "^2.9.1"
   },
   "devDependencies": {

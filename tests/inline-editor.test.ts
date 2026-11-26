@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+
 import { parseHTML } from 'linkedom';
 import { serializeSourceMap } from '../src/lib/source-map';
 import { DraftStorage } from '../src/lib/draft-storage';
@@ -907,25 +907,6 @@ test('a stale provider snapshot leaves the guide read-only', async () => {
     /older source/,
   );
   assert.equal(document.querySelector('[data-editor-fallback]'), null);
-});
-
-test('production output contains no development editor controls, source routes or client bundle', () => {
-  const walk = (directory: string): string[] =>
-    readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory()
-        ? walk(join(directory, entry.name))
-        : /\.(html|js|css)$/.test(entry.name)
-          ? [join(directory, entry.name)]
-          : [],
-    );
-  for (const path of walk('dist')) {
-    assert.doesNotMatch(path, /inline-editor|guide-source/);
-    assert.doesNotMatch(
-      readFileSync(path, 'utf8'),
-      /data-inline-edit-path|data-inline-editor|data-review-dialog|\/__dev\/guide-source|inline-editor-dev\.ts|pvme-inline-draft:|emoji-completions|emoji-autocomplete\.json/,
-      path,
-    );
-  }
 });
 
 test('clicking either highlighted side discards only that edit on a line', async () => {

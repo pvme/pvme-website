@@ -21,24 +21,11 @@ Open http://127.0.0.1:4321. The site reloads when files change. Keep the parser 
 
 ## Inline editing
 
-Enable the development editor before starting the server:
-
-```powershell
-$env:PVME_INLINE_EDITING = '1'
-npm run dev
-```
-
-Choose **Edit Page → Edit (in place)**. Click a message to edit its text, headings and nested bullets together, or switch to source editing. Embeds and media have contextual controls; insertion rows add new content. Drafts save locally and restore when the source revision still matches.
+Inline editing is available but is UI-only for now (not hooked up to API/Github PRs yet). Run `npm run dev` locally, then choose **Edit Page → Edit (in place)**. Click a message to edit its text, headings and nested bullets together, or switch to source editing. Embeds and media have contextual controls; insertion rows add new content. Drafts save locally and restore when the source revision still matches.
 
 The toolbar provides undo/redo, confirmed discard, Done and Submit changes. Review highlights individual source edits and lets you discard them separately. **Submit for review currently downloads a validated update JSON file; it does not publish a change or create a pull request.**
 
-Remove the flag and restart to return to normal development mode:
-
-```powershell
-Remove-Item Env:PVME_INLINE_EDITING
-```
-
-The editor and its read-only localhost source endpoint are excluded from production builds. Editing never writes to the canonical guide files.
+Builds include read-only source JSON for published catalogue guides, matching the source revision used to render each page. Editing never writes to the canonical guide files.
 
 ## Checks
 
