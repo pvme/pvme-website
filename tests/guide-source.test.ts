@@ -14,6 +14,7 @@ import { loadGuideSource } from '../src/lib/guide-source';
 import { mappedSource as source } from './helpers';
 
 test('published source access is catalogue-limited, read-only and rejects symlink escapes', () => {
+  mkdirSync(resolve('.local'), { recursive: true });
   const directory = mkdtempSync(resolve('.local/guide-source-'));
   const root = join(directory, 'guides'),
     outside = join(directory, 'outside');
