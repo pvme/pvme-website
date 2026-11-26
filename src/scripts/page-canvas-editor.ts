@@ -33,6 +33,7 @@ import { renderCanvasPreview, canvasTextSession } from './canvas-preview';
 import { RichLineEditor } from './rich-line-editor';
 import { updateDraftPreview } from './inline-preview';
 import { preserveSourceLineEndings } from '../lib/source-diff';
+import { linkDisplayUrl, linkSourceUrl } from '../lib/link-destination';
 
 export class PageCanvasEditor {
   readonly root: HTMLElement;
@@ -50,6 +51,20 @@ export class PageCanvasEditor {
   private controls: HTMLElement;
   private propertiesOpen = false;
   private propertyTarget?: string;
+  private dismissProperties?: () => void;
+  private onOutsidePointer = (event: Event) => {
+    const target = event.target as Node;
+    if (!this.inspector.hidden && !this.inspector.contains(target))
+      this.dismissProperties?.();
+    for (const menu of this.board.querySelectorAll<HTMLElement>(
+      '[data-canvas-insert-menu]:not([hidden])',
+    ))
+      if (!menu.parentElement?.contains(target)) this.closeInsertionMenus();
+    for (const menu of this.board.querySelectorAll<HTMLDetailsElement>(
+      '.canvas-block-menu[open]',
+    ))
+      if (!menu.contains(target)) menu.open = false;
+  };
   private positionProperties = () => this.positionInspector();
   private text?: {
     editor: RichLineEditor;
@@ -202,6 +217,7 @@ export class PageCanvasEditor {
     this.root.append(layout);
     this.article.dataset.canvasActive = '';
     this.article.append(this.root);
+    doc.addEventListener('pointerdown', this.onOutsidePointer, true);
     this.root.addEventListener('click', (event) => {
       if ((event.target as Element).closest('a')) event.preventDefault();
       event.stopPropagation();
@@ -345,6 +361,7 @@ export class PageCanvasEditor {
     return false;
   }
   close(keepDraftPreview = false): (() => void) | undefined {
+    this.doc.removeEventListener('pointerdown', this.onOutsidePointer, true);
     let preview: HTMLElement | undefined;
     if (keepDraftPreview) {
       this.render();
@@ -711,12 +728,13 @@ export class PageCanvasEditor {
         const editable =
           ['text', 'heading', 'list'].includes(block.kind) &&
           !(event.target as Element).closest('a,img');
-        const media = (event.target as Element).closest('a,img');
+        const media = (event.target as Element).closest<HTMLElement>('a,img');
         if (
           !this.select(
             index,
             !editable,
-            media?.getAttribute(media.tagName === 'IMG' ? 'src' : 'href') ||
+            media?.dataset.canvasSourceUrl ||
+              media?.getAttribute(media.tagName === 'IMG' ? 'src' : 'href') ||
               undefined,
           )
         )
@@ -1253,6 +1271,11 @@ export class PageCanvasEditor {
     }
   }
   private properties() {
+    this.dismissProperties = () => {
+      this.propertiesDirty = false;
+      this.propertiesOpen = false;
+      this.inspector.hidden = true;
+    };
     this.inspector.replaceChildren();
     const block = canvasBlocks(this.source)[this.selected];
     this.inspector.hidden = !block || !this.propertiesOpen;
@@ -1357,6 +1380,11 @@ export class PageCanvasEditor {
           (input as HTMLInputElement).type === 'color'
             ? '#' + Number(field.value).toString(16).padStart(6, '0')
             : field.value;
+        const linkField =
+          field.type === 'url' &&
+          (field.node?.type === 'link' || field.node?.type === 'mention');
+        if (linkField) input.value = this.displayLink(field.value);
+        if (linkField) (input as HTMLInputElement).type = 'url';
         if ((input as HTMLInputElement).type === 'checkbox')
           (input as HTMLInputElement).checked = field.value === 'true';
         input.dataset.canvasField = String(allFields.indexOf(field));
@@ -1371,6 +1399,7 @@ export class PageCanvasEditor {
         });
         label.append(input);
         form.append(label);
+        if (linkField) this.pagePicker(form, input as HTMLInputElement);
       });
       const save = this.doc.createElement('button');
       save.type = 'submit';
@@ -1394,17 +1423,48 @@ export class PageCanvasEditor {
                     JSON.stringify(original.path),
                 ) || original
               : blockFields(current)[Number(input.dataset.canvasField)];
-            const value =
+            let value =
               input.type === 'color'
                 ? String(parseInt(input.value.slice(1), 16))
                 : input.type === 'checkbox'
                   ? String((input as HTMLInputElement).checked)
                   : input.value;
+            if (
+              field?.type === 'url' &&
+              (field.node?.type === 'link' || field.node?.type === 'mention')
+            )
+              value =
+                input.value === this.displayLink(field.value)
+                  ? field.value
+                  : this.sourceLink(value);
+            if (field?.label === 'Link label' && field.node?.type === 'link') {
+              const urlInput = [
+                ...form.querySelectorAll<HTMLInputElement>(
+                  '[data-canvas-field]',
+                ),
+              ].find((candidate) => {
+                const candidateField =
+                  allFields[Number(candidate.dataset.canvasField)];
+                return (
+                  candidateField.node === original.node &&
+                  candidateField.type === 'url'
+                );
+              });
+              value = this.defaultLinkLabel(
+                value,
+                urlInput?.value || field.node.url,
+              );
+            }
             if (field && field.value !== value)
               source = replaceCanvasBlock(
                 source,
                 current,
-                changeBlockField(current, field, value),
+                changeBlockField(
+                  current,
+                  field,
+                  value,
+                  this.session.loaded.previewLinks?.[field.value]?.title,
+                ),
               );
           }
           this.apply(source);
@@ -1615,6 +1675,7 @@ export class PageCanvasEditor {
       : this.propertyTarget
         ? [...(card?.querySelectorAll<HTMLElement>('a,img,video') || [])].find(
             (element) =>
+              element.dataset.canvasSourceUrl === this.propertyTarget ||
               element.getAttribute('href') === this.propertyTarget ||
               element.getAttribute('src') === this.propertyTarget,
           )
@@ -1658,18 +1719,38 @@ export class PageCanvasEditor {
         ? 'hidden'
         : 'visible';
   }
-  private editFragmentLink(target: HTMLElement, fragment: EditSession) {
+  private editFragmentLink(
+    target: HTMLElement,
+    fragment: EditSession,
+    anchor = target,
+  ) {
     const state = this.text;
-    if (!state || !state.editor.finish()) return;
-    const fields = [
-      ['Link label', target.dataset.editRef],
-      ['Link URL', target.dataset.editUrl],
-    ].filter((item) => item[1]);
+    if (
+      !state ||
+      (state.editor.isActive
+        ? !state.editor.suspendForLink()
+        : !state.editor.finish())
+    )
+      return;
+    const channel =
+      target.dataset.canvasChannelIndex === undefined
+        ? undefined
+        : canvasBlocks(fragment.content()).flatMap((block) =>
+            blockFields(block)
+              .filter((field) => field.node?.type === 'mention')
+              .map((field) => ({ block, field })),
+          )[Number(target.dataset.canvasChannelIndex)];
+    const fields = channel
+      ? [['Link URL', 'channel-url']]
+      : [
+          ['Link URL', target.dataset.editUrl],
+          ['Link label', target.dataset.editRef],
+        ].filter((item) => item[1]);
     if (!fields.length) {
       this.announce('Use advanced source for this generated link.');
       return;
     }
-    this.inspectorAnchor = target;
+    this.inspectorAnchor = anchor;
     this.inspector.replaceChildren();
     this.inspector.hidden = false;
     this.propertiesOpen = true;
@@ -1679,7 +1760,9 @@ export class PageCanvasEditor {
       wrapper.textContent = label!;
       const input = this.doc.createElement('input');
       input.type = label === 'Link URL' ? 'url' : 'text';
-      input.value = fragment.value(id!);
+      const original = channel ? channel.field.value : fragment.value(id!);
+      input.value =
+        label === 'Link URL' ? this.displayLink(original) : original;
       input.dataset.fragmentLink = id!;
       input.setAttribute('aria-label', label!);
       input.addEventListener('input', () => {
@@ -1687,39 +1770,83 @@ export class PageCanvasEditor {
       });
       wrapper.append(input);
       form.append(wrapper);
+      if (label === 'Link URL') this.pagePicker(form, input);
     }
     const apply = this.doc.createElement('button');
     apply.type = 'submit';
     apply.textContent = 'Apply';
     form.append(apply);
-    const close = () => {
+    const close = (reset = false) => {
+      this.dismissProperties = undefined;
       this.propertiesDirty = false;
       this.propertiesOpen = false;
+      this.inspector.hidden = true;
+      this.inspectorAnchor = undefined;
+      if (!reset && state.editor.isActive) {
+        state.editor.resumeAfterLink();
+        return;
+      }
       state.editor.dispose();
       this.text = undefined;
       this.render();
     };
-    form.append(this.button('Cancel', close));
+    form.append(this.button('Cancel', () => close()));
+    this.dismissProperties = () => close();
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       try {
-        fragment.setChanges(
-          [
-            ...form.querySelectorAll<HTMLInputElement>('[data-fragment-link]'),
-          ].map((input) => ({
-            entryId: input.dataset.fragmentLink!,
-            replacement: input.value,
-          })),
-        );
+        let content: string;
+        if (channel) {
+          const input = form.querySelector<HTMLInputElement>('input')!;
+          const value =
+            input.value === this.displayLink(channel.field.value)
+              ? channel.field.value
+              : this.sourceLink(input.value);
+          content = replaceCanvasBlock(
+            fragment.content(),
+            channel.block,
+            changeBlockField(
+              channel.block,
+              channel.field,
+              value,
+              target.textContent || undefined,
+            ),
+          );
+        } else {
+          fragment.setChanges(
+            [
+              ...form.querySelectorAll<HTMLInputElement>(
+                '[data-fragment-link]',
+              ),
+            ].map((input) => ({
+              entryId: input.dataset.fragmentLink!,
+              replacement:
+                input.dataset.fragmentLink === target.dataset.editUrl
+                  ? input.value ===
+                    this.displayLink(
+                      fragment.value(input.dataset.fragmentLink!),
+                    )
+                    ? fragment.value(input.dataset.fragmentLink!)
+                    : this.sourceLink(input.value)
+                  : input.dataset.fragmentLink === target.dataset.editRef
+                    ? this.defaultLinkLabel(
+                        input.value,
+                        form.querySelector<HTMLInputElement>(
+                          '[aria-label="Link URL"]',
+                        )?.value ||
+                          target.dataset.canvasSourceUrl ||
+                          '',
+                      )
+                    : input.value,
+            })),
+          );
+          content = fragment.content();
+        }
         const replacement = state.path
-          ? patchJsonProperty(
-              state.block.source,
-              state.path,
-              fragment.content(),
-            )
-          : fragment.content();
+          ? patchJsonProperty(state.block.source, state.path, content)
+          : content;
         this.apply(replaceCanvasBlock(state.base, state.block, replacement));
-        close();
+        close(true);
         this.announce('Link updated.');
       } catch (error) {
         this.error(error);
@@ -1731,6 +1858,72 @@ export class PageCanvasEditor {
       .querySelector<HTMLInputElement>('input')
       ?.focus({ preventScroll: true });
   }
+  private displayLink(value: string) {
+    return linkDisplayUrl(
+      value,
+      this.session.loaded.linkPages || [],
+      this.doc.defaultView?.location?.href,
+    );
+  }
+  private sourceLink(value: string) {
+    return linkSourceUrl(
+      value,
+      this.session.loaded.linkPages || [],
+      this.doc.defaultView?.location?.href,
+    );
+  }
+  private defaultLinkLabel(label: string, url: string) {
+    if (label.trim()) return label;
+    const source = this.sourceLink(url);
+    return (
+      this.session.loaded.linkPages?.find((page) => page.sourceUrl === source)
+        ?.title ||
+      this.session.loaded.previewLinks?.[source]?.title ||
+      label
+    );
+  }
+  private pagePicker(form: HTMLElement, input: HTMLInputElement) {
+    const pages = this.session.loaded.linkPages || [];
+    if (!pages.length) return;
+    const label = this.doc.createElement('label');
+    label.textContent = 'Website page';
+    const select = this.doc.createElement('select');
+    select.setAttribute('aria-label', 'Website page');
+    const placeholder = this.doc.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Choose a website page…';
+    select.append(placeholder);
+    for (const page of pages) {
+      const option = this.doc.createElement('option');
+      option.value = page.url;
+      option.textContent = page.title;
+      select.append(option);
+    }
+    const sync = () => {
+      const value =
+        pages.find(
+          (page) =>
+            this.displayLink(page.sourceUrl) === input.value ||
+            page.url === input.value,
+        )?.url || '';
+      const option = [...select.options].find(
+        (option) => option.value === value,
+      );
+      if (option) option.selected = true;
+    };
+    sync();
+    select.addEventListener('change', () => {
+      if (!select.value) return;
+      const page = pages.find((page) => page.url === select.value)!;
+      input.value = this.displayLink(page.sourceUrl);
+      input.dispatchEvent(
+        new this.doc.defaultView!.Event('input', { bubbles: true }),
+      );
+    });
+    input.addEventListener('input', sync);
+    label.append(select);
+    form.append(label);
+  }
   private async editText(
     index: number,
     point?: { x: number; y: number },
@@ -1738,6 +1931,7 @@ export class PageCanvasEditor {
   ) {
     if (!this.canLeaveProperties()) return;
     if (this.text && this.selected === index) return;
+    const hadText = !!this.text;
     if (!this.finishText()) return;
     const message = !path ? this.currentMessage(index) : undefined;
     const wholeMessage =
@@ -1751,7 +1945,7 @@ export class PageCanvasEditor {
       );
     if (!this.select(index, false)) return;
     index = this.selected;
-    this.render();
+    if (hadText || this.renderedSource !== this.source) this.render();
     this.select(index, false);
     const block = wholeMessage ? message! : this.blocks[index];
     if (!block) return;
@@ -1785,6 +1979,26 @@ export class PageCanvasEditor {
       const card = this.board.querySelectorAll<HTMLElement>(
         '[data-canvas-block]',
       )[index];
+      // Media stays outside the text preview that RichLineEditor hides.
+      // Move the live nodes to retain slider position and event handlers.
+      if (!path) {
+        const host = wholeMessage
+          ? card
+              .closest('[data-canvas-message]')!
+              .querySelector('[data-message-content]')!
+          : card.querySelector('[data-canvas-preview]')!;
+        const selector =
+          '[data-preset-carousel],.preset-preview-card,.media-preview-card';
+        const media = [...host.querySelectorAll<HTMLElement>(selector)].filter(
+          (element) => !element.parentElement?.closest(selector),
+        );
+        if (media.length) {
+          const previews = this.doc.createElement('div');
+          previews.dataset.canvasTextMedia = '';
+          previews.append(...media);
+          article.append(previews);
+        }
+      }
       if (path) {
         const target = [
           ...card.querySelectorAll<HTMLElement>('[data-embed-text]'),
@@ -1836,6 +2050,8 @@ export class PageCanvasEditor {
                 if (
                   this.text !== finished ||
                   finished.editor.isActive ||
+                  // Link properties own the finished fragment until Apply/Cancel.
+                  this.propertiesOpen ||
                   !this.root.isConnected
                 )
                   return;
@@ -1876,6 +2092,8 @@ export class PageCanvasEditor {
           return;
         }
         const target = event.target as Element;
+        if (target.closest('[data-canvas-text-media]') && !target.closest('a'))
+          return;
         if (target.closest('a')) {
           event.preventDefault();
           event.stopPropagation();
@@ -1884,8 +2102,16 @@ export class PageCanvasEditor {
             editor.editCreatedLink(link);
             return;
           }
-          if (!editor.finish()) return;
-          this.editFragmentLink(link, session);
+          const sourceLink = link.closest('[data-canvas-text-media]')
+            ? [
+                ...article.querySelectorAll<HTMLElement>('a[data-edit-url]'),
+              ].find(
+                (candidate) =>
+                  candidate.dataset.canvasSourceUrl ===
+                  link.getAttribute('href'),
+              )
+            : link;
+          if (sourceLink) this.editFragmentLink(sourceLink, session, link);
           return;
         }
 

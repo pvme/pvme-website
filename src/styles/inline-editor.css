@@ -588,7 +588,7 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   margin: 14px 0;
   color: #bdcfe2;
 }
-.canvas-properties :is(input, textarea) {
+.canvas-properties :is(input, textarea, select) {
   box-sizing: border-box;
   display: block;
   width: 100%;
@@ -822,10 +822,11 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   color: #edf6ff;
   cursor: pointer;
 }
-.line-formatting button[aria-pressed='true'] {
-  background: #8cbfff;
-  border-color: #b4d8ff;
-  color: #092037;
+.line-formatting button[aria-pressed='true'],
+.page-canvas .line-formatting button[aria-pressed='true'] {
+  background: #315f8c;
+  border-color: #9bcaff;
+  color: #ffffff;
 }
 .line-formatting button[aria-pressed='mixed'] {
   border-color: #b4d8ff;
@@ -852,6 +853,12 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   flex-wrap: wrap;
   gap: 6px;
   flex-basis: 100%;
+  position: relative;
+  z-index: 106;
+  padding: 8px;
+  border: 1px solid #4b657e;
+  border-radius: 8px;
+  background: #142438;
 }
 .line-link-picker button {
   max-width: 100%;
@@ -1300,4 +1307,14 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
 }
 .line-link-form [role='alert']:empty {
   display: none;
+}
+.canvas-properties,
+.canvas-insert-menu,
+.canvas-block-menu > div,
+.line-link-picker,
+.inline-dialog {
+  box-shadow:
+    0 18px 50px #000b,
+    0 5px 14px #0009,
+    0 0 0 1px #6c9ac326;
 }

@@ -281,6 +281,11 @@ export function createDiscordLinkResolver(
   };
   return {
     resolve,
+    pages: [...targets].map(([channel, target]) => ({
+      title: target.title,
+      href: url(target.href),
+      sourceUrl: `https://discord.com/channels/${guild}/${channel}`,
+    })),
     title: (raw: string) => {
       const address = discordAddress(raw);
       if (!address) return;

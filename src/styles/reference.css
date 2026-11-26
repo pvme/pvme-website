@@ -439,6 +439,24 @@ main {
   > .heading-permalink {
   top: calc(var(--guide-divider-gap) + 0.65em);
 }
+/* A heading that opens the guide has no preceding content to divide. */
+.guide-content:not(.reference-content)
+  > div
+  > .guide-message:first-of-type
+  > h2:nth-child(1 of :not(.anchor)),
+.hub-page
+  .guide-content:not(.reference-content)
+  > div
+  > :nth-child(
+    1
+      of
+      .guide-message:has(> :not(.guide-document-title, .guide-cover, .anchor))
+  )
+  > h2:nth-child(1 of :not(.guide-document-title, .guide-cover, .anchor)) {
+  --guide-divider-gap: 0px;
+  border-top: 0;
+  padding-top: 0;
+}
 /* Embedded headings use the panel's spacing, not page-section dividers. */
 .guide-content:not(.reference-content)
   :is(blockquote, .guide-embed, .mechanic-message)

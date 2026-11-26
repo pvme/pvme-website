@@ -108,8 +108,20 @@ export function linkSelection(
   start: number,
   end: number,
   url: string,
+  displayText?: string,
 ): RichLine {
+  // Native word selection can include adjacent spaces. Keep them in the text.
+  const selection = model
+    .map((row) =>
+      row.map((part) => (part.type === 'text' ? part.text : '\uFFFC')).join(''),
+    )
+    .join('\n')
+    .slice(start, end);
+  start += selection.match(/^[^\S\r\n]*/)?.[0].length || 0;
+  end -= selection.match(/[^\S\r\n]*$/)?.[0].length || 0;
   if (start >= end) throw new Error('Select the text to link first.');
+  if (displayText && /[\r\n]/.test(displayText))
+    throw new Error('Link text must stay on one line.');
   let offset = 0;
   return normalizeRichLine(
     model.map((row) => {
@@ -147,7 +159,7 @@ export function linkSelection(
         strikethrough: '~~',
         spoiler: '||',
       };
-      const label = selected
+      const originalLabel = selected
         .map((part) => {
           if (part.type !== 'text') return '';
           const innerMarks = part.marks.filter((mark) => !marks.includes(mark));
@@ -162,6 +174,13 @@ export function linkSelection(
           );
         })
         .join('');
+      const selectedText = selected
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join('');
+      const label =
+        displayText?.trim() && displayText !== selectedText
+          ? displayText.replace(/[\\[\]<>*_~`|]/g, '\\$&')
+          : originalLabel;
       const token = newLinkToken(`[${label}](<${url.trim()}>)`);
       if (!token) throw new Error('Enter a valid http or https URL.');
       const result: RichPart[] = [];

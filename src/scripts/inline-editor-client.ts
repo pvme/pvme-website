@@ -1,6 +1,9 @@
 import { initializeInlineEditor } from './inline-editor';
 import { DraftStorage, type DraftStore } from '../lib/draft-storage';
 import type { GuideSourceProvider } from '../lib/guide-source-provider';
+import type { LinkPage } from '../lib/guide-source-provider';
+
+let linkPages: Promise<LinkPage[]> | undefined;
 
 const provider: GuideSourceProvider = {
   async load(path) {
@@ -14,7 +17,24 @@ const provider: GuideSourceProvider = {
       throw new Error(
         'Guide source unavailable. Reload the page or use Guide Editor.',
       );
-    return response.json();
+    const loaded = await response.json();
+    linkPages ??= fetch(`${base}/link-pages.json`, { credentials: 'omit' })
+      .then((result) => {
+        if (!result.ok) throw new Error('Page list unavailable');
+        return result.json() as Promise<LinkPage[]>;
+      })
+      .catch(() => {
+        linkPages = undefined;
+        return [];
+      });
+    loaded.linkPages = await linkPages;
+    loaded.previewLinks ||= {};
+    for (const page of loaded.linkPages)
+      loaded.previewLinks[page.sourceUrl] ||= {
+        href: page.href,
+        title: page.title,
+      };
+    return loaded;
   },
 };
 let storage: DraftStore;

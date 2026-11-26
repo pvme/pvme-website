@@ -923,7 +923,7 @@ test('Link toolbar creates a link from selected text, rejects unsafe URLs and ke
     commonAncestorContainer: root,
     collapsed: false,
     startOffset: 7,
-    endOffset: 11,
+    endOffset: 12,
     cloneRange() {
       return this;
     },
@@ -960,6 +960,10 @@ test('Link toolbar creates a link from selected text, rejects unsafe URLs and ke
   clickLink();
   const form = document.querySelector<HTMLFormElement>('[data-link-create]')!;
   assert.ok(form);
+  assert.equal(
+    form.querySelector<HTMLInputElement>('[aria-label="Display text"]')?.value,
+    'word',
+  );
   const input = form.querySelector<HTMLInputElement>('input')!;
   input.value = 'javascript:alert(1)';
   form.dispatchEvent(
@@ -982,10 +986,58 @@ test('Link toolbar creates a link from selected text, rejects unsafe URLs and ke
   const update = document.querySelector<HTMLFormElement>('[data-link-create]')!;
   update.querySelector<HTMLInputElement>('input')!.value =
     'https://updated.example';
+  const display = update.querySelector<HTMLInputElement>(
+    '[aria-label="Display text"]',
+  )!;
+  assert.equal(display.value, 'word');
+  display.value = 'Helpful [guide]';
   update.dispatchEvent(
     new window.Event('submit', { bubbles: true, cancelable: true }),
   );
-  assert.equal(s.content(), 'Select [word](<https://updated.example>) here.');
+  assert.equal(
+    s.content(),
+    'Select [Helpful \\[guide\\]](<https://updated.example>) here.',
+  );
+  assert.equal(root.querySelector('a')!.textContent, 'Helpful [guide]');
   editor.cancel();
   assert.equal(s.content(), 'Select word here.');
 });
+
+test('new link display text replaces only the selection and retains its formatting', async () => {
+  const { session: s } = await session('See **word** here.');
+  const line = s.lines[0];
+  s.setLine(
+    line.id,
+    linkSelection(
+      s.lineModel(line.id),
+      4,
+      8,
+      'https://example.com',
+      'Read [guide]',
+    ),
+  );
+  assert.equal(
+    s.content(),
+    'See **[Read \\[guide\\]](<https://example.com>)** here.',
+  );
+});
+
+for (const custom of [undefined, 'Read guide'])
+  test(`link creation leaves selected edge whitespace outside the link (${custom || 'selected text'})`, async () => {
+    const { session: s } = await session('See **word** here.');
+    const line = s.lines[0];
+    s.setLine(
+      line.id,
+      linkSelection(s.lineModel(line.id), 3, 9, 'https://example.com', custom),
+    );
+    assert.equal(
+      s.content(),
+      `See **[${custom || 'word'}](<https://example.com>)** here.`,
+    );
+    s.undo(line.id);
+    assert.equal(s.content(), 'See **word** here.');
+    assert.throws(
+      () => linkSelection(s.lineModel(line.id), 3, 4, 'https://example.com'),
+      /Select the text/,
+    );
+  });

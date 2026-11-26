@@ -1,4 +1,5 @@
 import type { EditSession, PendingChange } from '../lib/edit-session';
+import type { InlineNode } from '@pvme/guide-parser';
 import { inlineTokenFromId, newLinkToken } from '../lib/rich-token';
 import {
   linkSelection,
@@ -509,6 +510,25 @@ export class RichLineEditor {
     { parent: HTMLElement; original: string; promoted: string }
   >();
   private onSelectionChange: () => void;
+  private onOutsidePointer = (event: Event) => {
+    const active = this.active;
+    if (!active) return;
+    for (const popup of active.wrapper.querySelectorAll<HTMLElement>(
+      '[data-link-create],[data-link-picker]',
+    )) {
+      if (
+        popup.contains(event.target as Node) ||
+        active.wrapper
+          .querySelector('[data-format-link]')
+          ?.contains(event.target as Node)
+      )
+        continue;
+      popup.remove();
+      active.wrapper
+        .querySelector('[data-format-link]')
+        ?.setAttribute('aria-expanded', 'false');
+    }
+  };
   private active?: {
     wrapper: HTMLElement;
     root: HTMLElement;
@@ -538,9 +558,11 @@ export class RichLineEditor {
       }
     };
     doc.addEventListener('selectionchange', this.onSelectionChange);
+    doc.addEventListener('pointerdown', this.onOutsidePointer, true);
   }
   dispose() {
     this.doc.removeEventListener('selectionchange', this.onSelectionChange);
+    this.doc.removeEventListener('pointerdown', this.onOutsidePointer, true);
   }
   get isActive() {
     return !!this.active;
@@ -1492,6 +1514,35 @@ export class RichLineEditor {
     input.placeholder = 'https://example.com';
     input.value = token?.node.type === 'link' ? token.node.url : '';
     label.append(input);
+    const textOf = (nodes: InlineNode[]): string =>
+      nodes
+        .map((node) =>
+          'children' in node
+            ? textOf(node.children)
+            : 'value' in node
+              ? node.value
+              : node.raw,
+        )
+        .join('');
+    const originalText =
+      token?.node.type === 'link'
+        ? textOf(token.node.children)
+        : model
+            .map((row) =>
+              row
+                .map((part) => (part.type === 'text' ? part.text : '\uFFFC'))
+                .join(''),
+            )
+            .join('\n')
+            .slice(start, end)
+            .trim();
+    const displayLabel = this.doc.createElement('label');
+    displayLabel.textContent = 'Display text';
+    const display = this.doc.createElement('input');
+    display.type = 'text';
+    display.setAttribute('aria-label', 'Display text');
+    display.value = originalText;
+    displayLabel.append(display);
     const save = this.doc.createElement('button');
     save.type = 'submit';
     save.textContent = existingId ? 'Save link' : 'Add link';
@@ -1529,10 +1580,16 @@ export class RichLineEditor {
         let updated: RichLine;
         if (token?.node.type === 'link') {
           const node = token.node;
+          const labelText = display.value.trim() ? display.value : originalText;
+          const rawLabel =
+            labelText === originalText
+              ? token.raw.slice(
+                  node.labelRange!.start.offset,
+                  node.labelRange!.end.offset,
+                )
+              : labelText.replace(/[\\[\]<>*_~`|]/g, '\\$&');
           const replacement = newLinkToken(
-            token.raw.slice(0, node.urlRange!.start.offset) +
-              input.value.trim() +
-              token.raw.slice(node.urlRange!.end.offset),
+            `[${rawLabel}](<${input.value.trim()}>)`,
           );
           if (!replacement) throw new Error('Enter a valid http or https URL.');
           updated = model.map((row) =>
@@ -1542,7 +1599,14 @@ export class RichLineEditor {
                 : part,
             ),
           );
-        } else updated = linkSelection(model, start, end, input.value);
+        } else
+          updated = linkSelection(
+            model,
+            start,
+            end,
+            input.value,
+            display.value,
+          );
         this.applyEditorModel(updated);
         this.refill();
         form.remove();
@@ -1557,7 +1621,7 @@ export class RichLineEditor {
           failure instanceof Error ? failure.message : 'Unable to add link';
       }
     });
-    form.append(label, save, cancel, error);
+    form.append(label, displayLabel, save, cancel, error);
     active.wrapper.querySelector('.line-formatting')!.append(form);
     active.wrapper
       .querySelector('[data-format-link]')
@@ -1588,7 +1652,11 @@ export class RichLineEditor {
           this.linkForm(target.dataset.createdLink);
           return;
         }
-        if (!target.dataset.editRef && !target.dataset.editUrl) {
+        if (
+          !target.dataset.editRef &&
+          !target.dataset.editUrl &&
+          !(this.editLink && target.dataset.canvasChannelIndex !== undefined)
+        ) {
           this.showMessage('This link is read-only in inline editing.');
           return;
         }

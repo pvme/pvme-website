@@ -30,6 +30,7 @@ export function renderCanvasPreview(
   links: LoadedGuideSource['previewLinks'] = {},
 ): HTMLElement {
   const root = doc.createElement('div');
+  let channelIndex = 0;
   root.className = 'canvas-block-preview guide-content';
   const entry = (node: InlineNode, type: EditableEntry['kind']) => {
     const range =
@@ -71,6 +72,7 @@ export function renderCanvasPreview(
       } else if (node.type === 'link') {
         const a = doc.createElement('a');
         a.href = safeUrl(links[node.url]?.href || node.url);
+        a.dataset.canvasSourceUrl = node.url;
         a.rel = 'noopener noreferrer';
         const label = entry(node, 'link-label'),
           url = entry(node, 'link-url');
@@ -115,6 +117,8 @@ export function renderCanvasPreview(
         const raw = `https://discord.com/channels/534508796639182860/${node.target}`;
         const resolved = links[raw];
         link.href = safeUrl(resolved?.href || raw);
+        link.dataset.canvasSourceUrl = raw;
+        link.dataset.canvasChannelIndex = String(channelIndex++);
         link.textContent = resolved?.href.startsWith('/')
           ? pageLinkTitle(resolved.title || 'Related guide')
           : 'Discord Channel ↗';

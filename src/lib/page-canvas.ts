@@ -1,4 +1,5 @@
 import { patchJsonProperty, jsonSource } from './json-source';
+import { pvmeChannelId, pvmeChannelUrl } from './link-destination';
 import {
   parseGuide,
   applySourceEdits,
@@ -468,6 +469,17 @@ export function blockFields(block: CanvasBlock): CanvasField[] {
   }
   if (!block.node) return [];
   return allInline(inlineNodes(block.node)).flatMap((node): CanvasField[] => {
+    if (node.type === 'mention' && node.kind === 'channel')
+      return [
+        {
+          label: 'Link URL',
+          value: pvmeChannelUrl(node.target),
+          type: 'url',
+          start: node.range.start.offset,
+          end: node.range.end.offset,
+          node,
+        },
+      ];
     if (node.type !== 'link' && node.type !== 'image') return [];
     const fields: CanvasField[] = [];
     if (node.urlRange)
@@ -506,6 +518,7 @@ export function changeBlockField(
   block: CanvasBlock,
   field: CanvasField,
   value: string,
+  label?: string,
 ): string {
   if (field.type === 'url' && value && !/^https?:\/\/[^\s<>"']+$/i.test(value))
     throw new Error('Enter an HTTP or HTTPS URL without spaces');
@@ -528,7 +541,13 @@ export function changeBlockField(
   const start = field.start! - offset,
     end = field.end! - offset;
   const replacement =
-    field.type === 'url' ? value : value.replace(/[\\\[\]*_~|`]/g, '\\$&');
+    field.node?.type === 'mention'
+      ? pvmeChannelId(value)
+        ? `<#${pvmeChannelId(value)}>`
+        : `[${(label || field.value).replace(/[\\\[\]*_~|`]/g, '\\$&')}](${value.replace(/\(/g, '%28').replace(/\)/g, '%29')})`
+      : field.type === 'url'
+        ? value
+        : value.replace(/[\\\[\]*_~|`]/g, '\\$&');
   const result = applySourceEdits(block.source, [
     { start, end, original: block.source.slice(start, end), replacement },
   ]);

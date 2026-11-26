@@ -20,6 +20,12 @@ import { renderCanvasPreview } from '../src/scripts/canvas-preview';
 import { PageCanvasEditor } from '../src/scripts/page-canvas-editor';
 import { preserveSourceLineEndings } from '../src/lib/source-diff';
 import { newEmojiToken } from '../src/lib/rich-token';
+import { EditSession } from '../src/lib/edit-session';
+import type {
+  LoadedGuideSource,
+  LinkPage,
+} from '../src/lib/guide-source-provider';
+import { pvmeChannelUrl } from '../src/lib/link-destination';
 
 const session = async (source: string) =>
   (await createTestGuide(source, 'test/canvas.txt')).session;
@@ -34,8 +40,16 @@ const embed = (eol = '\n') =>
     '.tag:keep',
     '.',
   ].join(eol);
-async function fixture(source: string, hub = false) {
-  const s = await session(source);
+async function fixture(
+  source: string,
+  hub = false,
+  links: Pick<LoadedGuideSource, 'linkPages' | 'previewLinks'> = {},
+) {
+  const guide = await createTestGuide(source, 'test/canvas.txt');
+  const s = await EditSession.create(guide.rendered.sourceMap, {
+    ...guide.session.loaded,
+    ...links,
+  });
   const { document, window } = parseHTML(
     '<html><body><article id="guide"><p>Original reading view</p></article></body></html>',
   );
@@ -641,6 +655,480 @@ test('media popovers edit the clicked URL when several links share field labels'
   f.click('[data-canvas-undo]');
   assert.equal(f.s.content(), source);
 });
+
+test('the first inline preset click opens the clicked link in a message with a heading and multiple bullets', async () => {
+  const first = 'https://presets.pvme.io/?id=first';
+  const second = 'https://presets.pvme.io/?id=second';
+  const source = `## __Gear, Relics, Familiars__\r\n.tag:presets\r\nThe following presets are based on Stage 1:\r\n⬥ [Necromancy](<${first}>)\r\n⬥ [Magic](${second})\r\n`;
+  const f = await fixture(source);
+  try {
+    f.click('[data-canvas-kind="heading"] [data-canvas-preview]');
+    await settle();
+    f.click(`.inline-line-input a[href="${second}"]`);
+    await settle();
+    const input = f.document.querySelector<HTMLInputElement>(
+      '[aria-label="Link URL"], [aria-label="Preset URL"]',
+    );
+    assert.ok(
+      input,
+      'first click opens a URL input rather than heading properties',
+    );
+    assert.equal(input.value, second);
+    assert.equal(
+      f.document.querySelector<HTMLInputElement>('[aria-label="Link label"]')
+        ?.value,
+      'Magic',
+    );
+    input.value = 'https://presets.pvme.io/?id=replaced';
+    input
+      .closest('form')!
+      .dispatchEvent(
+        new f.window.Event('submit', { bubbles: true, cancelable: true }),
+      );
+    assert.equal(f.s.content(), source.replace(second, input.value));
+    f.click('[data-canvas-undo]');
+    assert.equal(f.s.content(), source);
+  } finally {
+    f.canvas.close();
+  }
+});
+
+test('preset link popups keep the message editor and clicked anchor in place on the first click and cancellation', async () => {
+  const url = 'https://presets.pvme.io/?id=second';
+  const source = `## Gear\nPresets:\n⬥ [Necromancy](https://presets.pvme.io/?id=first)\n⬥ [Magic](${url})`;
+  const f = await fixture(source);
+  try {
+    f.click('[data-canvas-kind="heading"] [data-canvas-preview]');
+    await settle();
+    const editor = f.document.querySelector<HTMLElement>('.inline-line-input')!;
+    const rect = {
+      left: 340,
+      right: 440,
+      top: 220,
+      bottom: 245,
+      width: 100,
+      height: 25,
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const link = editor.querySelector<HTMLElement>(`a[href="${url}"]`)!;
+      link.getBoundingClientRect = () =>
+        (link.isConnected
+          ? rect
+          : {
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 0,
+              height: 0,
+            }) as DOMRect;
+      f.click(`.inline-line-input a[href="${url}"]`);
+      await settle();
+      const panel =
+        f.document.querySelector<HTMLElement>('.canvas-properties')!;
+      assert.ok(
+        link.isConnected,
+        'opening the popup must keep its clicked anchor connected',
+      );
+      assert.ok(
+        editor.isConnected,
+        'opening the popup must keep the same message editing surface',
+      );
+      assert.equal(panel.style.left, '340px');
+      assert.equal(panel.style.top, '253px');
+      assert.equal(
+        panel.querySelector<HTMLInputElement>('[aria-label="Link URL"]')?.value,
+        url,
+      );
+      const cancel = [...panel.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Cancel',
+      )!;
+      cancel.dispatchEvent(
+        new f.window.Event('click', { bubbles: true, cancelable: true }),
+      );
+      await settle();
+      assert.ok(editor.isConnected, 'cancel resumes the same message editor');
+      assert.ok(panel.hidden);
+      assert.equal(f.s.content(), source);
+    }
+  } finally {
+    f.canvas.close();
+  }
+});
+
+for (const inline of [false, true])
+  test(`outside clicks cancel link popups without saving unapplied values (${inline ? 'inline' : 'preview'})`, async () => {
+    const source = 'See [Guide](https://example.com/original).';
+    const f = await fixture(source);
+    const pointer = (element: Element) =>
+      element.dispatchEvent(
+        new f.window.Event('pointerdown', { bubbles: true }),
+      );
+    try {
+      if (inline) {
+        f.click('[data-canvas-preview]');
+        await settle();
+        f.click('.inline-line-input a');
+      } else f.click('[data-canvas-preview] a');
+      const panel =
+        f.document.querySelector<HTMLElement>('.canvas-properties')!;
+      const input = panel.querySelector<HTMLInputElement>(
+        '[aria-label="Link URL"]',
+      )!;
+      const editor = f.document.querySelector('.inline-line-input');
+      pointer(input);
+      assert.equal(
+        panel.hidden,
+        false,
+        'inside interaction keeps the popup open',
+      );
+      input.value = 'https://example.com/unapplied';
+      input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+      assert.equal(f.canvas.hasUnappliedChanges, true);
+      pointer(f.document.body);
+      await settle();
+      assert.ok(panel.hidden);
+      assert.equal(f.canvas.hasUnappliedChanges, false);
+      assert.equal(f.s.content(), source);
+      if (inline)
+        assert.ok(editor?.isConnected, 'dismissal preserves message editing');
+    } finally {
+      f.canvas.close();
+    }
+  });
+
+test('outside clicks dismiss insertion menus and inline link pickers', async () => {
+  const f = await fixture(
+    'See [One](https://example.com/one) and [Two](https://example.com/two).',
+  );
+  const pointer = (element: Element) =>
+    element.dispatchEvent(new f.window.Event('pointerdown', { bubbles: true }));
+  try {
+    f.click('[data-canvas-drop]');
+    const menu = f.document.querySelector<HTMLElement>(
+      '[data-canvas-insert-menu]',
+    )!;
+    pointer(menu);
+    assert.equal(menu.hidden, false);
+    pointer(f.document.body);
+    assert.ok(menu.hidden);
+    assert.equal(
+      f.document
+        .querySelector('[data-canvas-drop]')
+        ?.getAttribute('aria-expanded'),
+      'false',
+    );
+    f.click('[data-canvas-preview]');
+    await settle();
+    f.click('[data-format-link]');
+    const picker = f.document.querySelector('[data-link-picker]')!;
+    assert.ok(picker);
+    pointer(picker);
+    assert.ok(picker.isConnected);
+    pointer(f.document.body);
+    assert.ok(!picker.isConnected);
+    assert.equal(
+      f.document
+        .querySelector('[data-format-link]')
+        ?.getAttribute('aria-expanded'),
+      'false',
+    );
+  } finally {
+    f.canvas.close();
+  }
+});
+
+test('message editing retains the live preset slider outside the hidden text and keeps its links editable', async () => {
+  const urls = [
+    'https://presets.pvme.io/?id=first',
+    'https://presets.pvme.io/?id=second',
+  ];
+  const source = `## Gear, Relics, Familiars\nThe following presets are based on Stage 1:\n⬥ [Necromancy](${urls[0]})\n⬥ [Magic](${urls[1]})`;
+  const s = await session(source);
+  const { document, window } = parseHTML(`<article id="guide">
+    <section class="preset-carousel" data-preset-carousel>
+      <div class="preset-carousel-controls"><span data-preset-count></span><button data-preset-prev>Previous</button><button data-preset-next>Next</button></div>
+      <div data-preset-track>${urls.map((url, index) => `<section data-preset-slide><a class="preset-preview-card" href="${url}"><img src="/preset-${index}.png" alt="Preset ${index}"></a></section>`).join('')}</div>
+    </section>
+  </article>`);
+  const canvas = new PageCanvasEditor(
+    document,
+    document.getElementById('guide')!,
+    s,
+    () => {},
+  );
+  try {
+    const carousel = canvas.root.querySelector<HTMLElement>(
+      '[data-preset-carousel]',
+    )!;
+    const track = carousel.querySelector<HTMLElement>('[data-preset-track]')!;
+    track.scrollTo = () => {};
+    click(document, '[data-page-canvas] [data-preset-next]');
+    assert.equal(
+      carousel.querySelector('[data-preset-count]')?.textContent,
+      '2 / 2',
+    );
+    click(document, '[data-canvas-kind="heading"] [data-canvas-preview]');
+    await settle();
+    assert.ok(document.querySelector('.inline-line-input'));
+    assert.equal(
+      canvas.root.querySelector('[data-preset-carousel]'),
+      carousel,
+      'retain the live slider',
+    );
+    assert.ok(
+      !carousel.closest('[data-inline-list-hidden], [hidden]'),
+      'slider remains visible while text is being edited',
+    );
+    assert.ok(
+      !carousel.closest('[contenteditable="true"]'),
+      'slider controls are outside editable text',
+    );
+    assert.equal(
+      carousel.querySelector('[data-preset-count]')?.textContent,
+      '2 / 2',
+    );
+    click(document, '[data-page-canvas] [data-preset-prev]');
+    assert.equal(
+      carousel.querySelector('[data-preset-count]')?.textContent,
+      '1 / 2',
+    );
+    assert.ok(
+      document.querySelector('.inline-line-input'),
+      'slider navigation keeps text editing open',
+    );
+    click(document, `[data-canvas-text-media] a[href="${urls[1]}"]`);
+    await settle();
+    const input = document.querySelector<HTMLInputElement>(
+      '[aria-label="Link URL"]',
+    )!;
+    assert.ok(input, 'preview links edit the corresponding source URL');
+    assert.equal(input.value, urls[1]);
+    assert.ok(!carousel.closest('[data-inline-list-hidden], [hidden]'));
+    input.value = 'https://presets.pvme.io/?id=changed';
+    input
+      .closest('form')!
+      .dispatchEvent(
+        new window.Event('submit', { bubbles: true, cancelable: true }),
+      );
+    assert.equal(s.content(), source.replace(urls[1], input.value));
+    click(document, '[data-canvas-undo]');
+    assert.equal(s.content(), source);
+  } finally {
+    canvas.close();
+  }
+});
+
+test('resolved guide links expose their source URL for editing and undo', async () => {
+  const original = 'https://discord.com/channels/534508796639182860/123456789';
+  const source = `See [Upgrade Order](${original}) for your style.`;
+  const guide = await createTestGuide(source, 'test/canvas.txt');
+  const s = await EditSession.create(guide.rendered.sourceMap, {
+    ...guide.session.loaded,
+    previewLinks: { [original]: { href: '/resources/upgrade-orders/' } },
+  });
+  const { document, window } = parseHTML('<article id="guide"></article>');
+  const canvas = new PageCanvasEditor(
+    document,
+    document.getElementById('guide')!,
+    s,
+    () => {},
+  );
+  try {
+    click(
+      document,
+      '[data-canvas-preview] a[href="/resources/upgrade-orders/"]',
+    );
+    const url = document.querySelector<HTMLInputElement>(
+      '[aria-label="Link URL"]',
+    );
+    assert.ok(url, 'the link popup contains a URL input');
+    assert.equal(url.value, original);
+    assert.ok(document.querySelector('[aria-label="Link label"]'));
+    url.value = 'https://example.com/new';
+    url
+      .closest('form')!
+      .dispatchEvent(
+        new window.Event('submit', { bubbles: true, cancelable: true }),
+      );
+    assert.equal(
+      s.content(),
+      source.replace(original, 'https://example.com/new'),
+    );
+    click(document, '[data-canvas-undo]');
+    assert.equal(s.content(), source);
+  } finally {
+    canvas.close();
+  }
+});
+
+for (const mode of ['preview', 'inline click', 'inline toolbar'] as const)
+  test(`Discord channel references can be edited through ${mode} and undone`, async () => {
+    const id = '1020045708746833930';
+    const source = `The aim is Tier 1 of <#${id}> for your chosen style.`;
+    const f = await fixture(source);
+    try {
+      if (mode === 'preview') f.click('[data-canvas-preview] a');
+      else {
+        f.click('[data-canvas-preview]');
+        await settle();
+        f.click(
+          mode === 'inline click'
+            ? '.inline-line-input a'
+            : '[data-format-link]',
+        );
+      }
+      const input = f.document.querySelector<HTMLInputElement>(
+        '[aria-label="Link URL"]',
+      );
+      assert.ok(input, 'channel links must have an editable field');
+      assert.equal(input.type, 'url');
+      assert.equal(input.value, pvmeChannelUrl(id));
+      const replacement = '123456789012345678';
+      input.value = pvmeChannelUrl(replacement);
+      input.closest('form')!.dispatchEvent(
+        new f.window.Event('submit', {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      assert.equal(f.s.content(), source.replace(id, replacement));
+      f.click('[data-canvas-undo]');
+      assert.equal(f.s.content(), source);
+    } finally {
+      f.canvas.close();
+    }
+  });
+
+const linkPages: LinkPage[] = [
+  {
+    title: 'Upgrade Order',
+    href: '/resources/upgrade-orders/',
+    url: 'https://pvme.github.io/resources/upgrade-orders/',
+    sourceUrl: pvmeChannelUrl('1020045708746833930'),
+  },
+  {
+    title: 'Other Guide',
+    href: '/guides/other/',
+    url: 'https://pvme.github.io/guides/other/',
+    sourceUrl: pvmeChannelUrl('123456789012345678'),
+  },
+  {
+    title: 'Website Only',
+    href: '/tools/',
+    url: 'https://pvme.github.io/tools/',
+    sourceUrl: 'https://pvme.github.io/tools/',
+  },
+];
+const linkMetadata = {
+  linkPages,
+  previewLinks: Object.fromEntries(
+    linkPages.map((page) => [
+      page.sourceUrl,
+      { href: page.href, title: page.title },
+    ]),
+  ),
+};
+
+for (const inline of [false, true])
+  for (const label of ['', '   ', 'Custom text'])
+    test(`page links default empty labels to the selected title (${inline ? 'inline' : 'preview'}, ${JSON.stringify(label)})`, async () => {
+      const source = `See [Original text](${linkPages[0].sourceUrl}).`;
+      const f = await fixture(source, false, linkMetadata);
+      try {
+        if (inline) {
+          f.click('[data-canvas-preview]');
+          await settle();
+          f.click('[data-format-link]');
+        } else f.click('[data-canvas-preview] a');
+        const input = f.document.querySelector<HTMLInputElement>(
+          '[aria-label="Link label"]',
+        )!;
+        assert.ok(input);
+        input.value = label;
+        const picker = f.document.querySelector<HTMLSelectElement>(
+          '[aria-label="Website page"]',
+        )!;
+        [...picker.options].find(
+          (option) => option.value === linkPages[1].url,
+        )!.selected = true;
+        picker.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+        input
+          .closest('form')!
+          .dispatchEvent(
+            new f.window.Event('submit', { bubbles: true, cancelable: true }),
+          );
+        assert.equal(
+          f.s.content(),
+          `See [${label.trim() ? label : linkPages[1].title}](${linkPages[1].sourceUrl}).`,
+        );
+        f.click('[data-canvas-undo]');
+        assert.equal(f.s.content(), source);
+      } finally {
+        f.canvas.close();
+      }
+    });
+
+for (const inline of [false, true])
+  for (const destination of [
+    'mapped page',
+    'website only',
+    'external URL',
+    'unchanged',
+  ] as const)
+    test(`channel URL popup saves ${destination} (${inline ? 'inline' : 'preview'})`, async () => {
+      const source = 'See <#1020045708746833930> for your style.';
+      const f = await fixture(source, false, linkMetadata);
+      try {
+        const open = async () => {
+          if (inline) {
+            f.click('[data-canvas-preview]');
+            await settle();
+            f.click('[data-format-link]');
+          } else f.click('[data-canvas-preview] a');
+        };
+        await open();
+        const input = f.document.querySelector<HTMLInputElement>(
+          '[aria-label="Link URL"]',
+        )!;
+        const picker = f.document.querySelector<HTMLSelectElement>(
+          '[aria-label="Website page"]',
+        )!;
+        assert.ok(input && picker);
+        assert.equal(input.type, 'url');
+        assert.equal(input.value, linkPages[0].url);
+        assert.equal(picker.value, linkPages[0].url);
+        let expected = source;
+        if (destination === 'mapped page' || destination === 'website only') {
+          const page = linkPages[destination === 'mapped page' ? 1 : 2];
+          [...picker.options].find(
+            (option) => option.value === page.url,
+          )!.selected = true;
+          picker.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+          assert.equal(input.value, page.url);
+          expected =
+            destination === 'mapped page'
+              ? 'See <#123456789012345678> for your style.'
+              : 'See [Upgrade Order](https://pvme.github.io/tools/) for your style.';
+        } else if (destination === 'external URL') {
+          input.value = 'https://example.com/guide';
+          expected =
+            'See [Upgrade Order](https://example.com/guide) for your style.';
+        }
+        input
+          .closest('form')!
+          .dispatchEvent(
+            new f.window.Event('submit', { bubbles: true, cancelable: true }),
+          );
+        assert.equal(f.s.content(), expected);
+        if (destination !== 'unchanged') {
+          f.click('[data-canvas-undo]');
+          assert.equal(f.s.content(), source);
+        }
+      } finally {
+        f.canvas.close();
+      }
+    });
 
 test('editing retains cached preset cards whose source URL is on the card itself', async () => {
   const source = '[Preset](https://presets.pvme.io/?id=test)';
