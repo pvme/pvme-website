@@ -636,6 +636,21 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   gap: 8px;
   margin: 12px 0;
 }
+.inline-dialog [data-replacement-consent] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.875rem;
+}
+.inline-dialog [data-replacement-consent] input {
+  width: 1rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0;
+  margin: 0.3rem 0 0;
+  flex: none;
+  accent-color: var(--blue);
+}
 .inline-dialog button {
   min-height: 42px;
   padding: 8px 12px;

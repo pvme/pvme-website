@@ -6,6 +6,11 @@ const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
 
 <button
   type="button"
+  hidden={
+    !import.meta.env.DEV &&
+    (import.meta.env.PUBLIC_AUTHENTICATED_EDITING !== 'true' ||
+      import.meta.env.PUBLIC_AUTHENTICATION !== 'true')
+  }
   class="guide-edit"
   data-guide-edit
   data-inline-edit-path={guide.path}

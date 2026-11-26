@@ -150,9 +150,12 @@ test('draft persistence stores minimum data and validates complete restoration',
   assert.equal(drafts.save(session), undefined);
   const serialized = store.getItem(drafts.key(session.path))!;
   assert.deepEqual(Object.keys(JSON.parse(serialized)).sort(), [
+    'branch',
     'edits',
+    'existingReviewBranch',
     'path',
     'schemaVersion',
+    'source',
     'sourceHash',
     'updatedAt',
   ]);
@@ -261,6 +264,7 @@ test('submission preparation retains backend metadata and rejects empty, stale a
     branch: 'master',
     existingReviewBranch: '',
     replaceExistingReview: false,
+    sourcePreservation: 'exact',
   });
   const review = {
     ...loaded(),

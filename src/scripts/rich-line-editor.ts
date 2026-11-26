@@ -122,7 +122,11 @@ function attachTargets(article: HTMLElement, session: EditSession) {
     ),
   );
   const hosts = new Set(
-    [...article.querySelectorAll<HTMLElement>(selector)]
+    [
+      ...article.querySelectorAll<HTMLElement>(
+        `${selector},[data-quote-heading-line]`,
+      ),
+    ]
       .filter((node) => !node.closest('[data-source-line]'))
       .map((node) => node.closest<HTMLElement>('p,h2,h3,h4,h5,h6'))
       .filter((node): node is HTMLElement => !!node),
@@ -149,6 +153,15 @@ function attachTargets(article: HTMLElement, session: EditSession) {
     }
     for (const group of groups) {
       const ids = new Set<SourceLine>();
+      if (host.hasAttribute('data-quote-heading-line')) {
+        const line = session.lines.find(
+          (line) =>
+            line.kind === 'heading' &&
+            line.botPrefix &&
+            line.range.start.offset === Number(host.dataset.quoteHeadingLine),
+        );
+        if (line) ids.add(line);
+      }
       for (const node of group) {
         if (node.nodeType !== 1) continue;
         const element = node as HTMLElement;

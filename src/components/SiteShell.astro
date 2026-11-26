@@ -11,6 +11,7 @@ import Icon from './Icon.astro';
 import SuggestionDialog from './SuggestionDialog.astro';
 import EditGuideLink from './EditGuideLink.astro';
 import InlineEditor from './InlineEditor.astro';
+import AccountControl from './AccountControl.astro';
 import GuideActions from './GuideActions.astro';
 import { url } from '../lib/catalogue';
 import {
@@ -52,6 +53,7 @@ const isActive = (href: string) =>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    <meta name="referrer" content="no-referrer" />
     <link rel="icon" href={url('/favicon.ico')} />
     <title>{title} · PvME</title>
   </head>
@@ -196,11 +198,17 @@ const isActive = (href: string) =>
             </div>
             <div class="site-header-actions">
               {actionGuide && <GuideActions guide={actionGuide} />}
+              <AccountControl />
             </div>
           </div>
         </header>
       )}
       <slot />
+      {homepage && (
+        <div class="homepage-account">
+          <AccountControl />
+        </div>
+      )}
       {actionGuide && <SuggestionDialog />}
     </main>
     <footer>

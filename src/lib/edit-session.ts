@@ -45,7 +45,8 @@ export interface GuideUpdatePayload {
   source: LoadedGuideSource['source'];
   branch: string;
   existingReviewBranch: string;
-  replaceExistingReview: false;
+  replaceExistingReview: boolean;
+  sourcePreservation: 'exact';
 }
 
 /** Metadata is public/untrusted input. No coercion of unsupported schemas or edit kinds. */
@@ -694,6 +695,15 @@ export class EditSession {
       );
     const content = this.content();
     if (content === this.originalContent) throw new Error('No source changes');
+    if (!content.trim()) throw new Error('Guide content must not be empty');
+    if (
+      [content, this.originalContent].some(
+        (value) => new TextEncoder().encode(value).byteLength > 2 * 1024 * 1024,
+      )
+    )
+      throw new Error(
+        'Guide source exceeds the 2 MiB UTF-8 limit. Keep or export your draft.',
+      );
     return {
       type: 'update',
       repo: 'pvme/pvme-guides',
@@ -707,6 +717,7 @@ export class EditSession {
       branch: this.loaded.branch,
       existingReviewBranch: this.loaded.existingReviewBranch || '',
       replaceExistingReview: false,
+      sourcePreservation: 'exact',
     };
   }
 }

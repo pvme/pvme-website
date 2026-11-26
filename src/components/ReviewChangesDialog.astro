@@ -13,6 +13,7 @@
     </button>
   </header>
   <p data-review-guide></p>
+  <p data-review-source hidden></p>
   <p class="review-discard-hint">
     Click highlighted text to discard that edit.
   </p>
@@ -35,11 +36,31 @@
       Reason for the change
       <textarea name="notes" required maxlength="2000" rows="2"></textarea>
     </label>
+    <label data-replacement-consent hidden>
+      <input type="checkbox" data-replace-review />
+      Replace my linked submitted update with this version of the live guide.
+    </label>
     <div class="inline-actions">
       <button type="submit" data-prepare-update>
         Submit for review
       </button>
+      <button type="button" data-submit-export hidden>
+        Export update JSON
+      </button>
+      <button type="button" data-submit-reading hidden>
+        Return to guide
+      </button>
     </div>
   </form>
   <p data-prepare-status role="status"></p>
+  <p data-submit-result hidden>
+    <a data-submit-pr target="_blank" rel="noopener noreferrer">
+      View pull request
+    </a>
+  </p>
+  <p data-submit-recovery hidden>
+    <a data-submit-editor target="_blank" rel="noopener noreferrer">
+      Inspect or reload in Guide Editor
+    </a>
+  </p>
 </dialog>

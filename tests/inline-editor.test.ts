@@ -6,7 +6,10 @@ import { parseHTML } from 'linkedom';
 import { serializeSourceMap } from '../src/lib/source-map';
 import { DraftStorage } from '../src/lib/draft-storage';
 import { EditSession } from '../src/lib/edit-session';
-import { initializeInlineEditor } from '../src/scripts/inline-editor';
+import {
+  initializeInlineEditor,
+  type InlineEditorOptions,
+} from '../src/scripts/inline-editor';
 import { updateDraftPreview } from '../src/scripts/inline-preview';
 import {
   mappedSource as source,
@@ -28,6 +31,7 @@ function fixture(
   text = source,
   pageCanvas = false,
   viewport?: { matches: boolean; mobile?: boolean; changed?: () => void },
+  overrides: Partial<InlineEditorOptions> = {},
 ) {
   const rendered = render(text),
     map = rendered.sourceMap!;
@@ -78,12 +82,14 @@ function fixture(
       return loaded(text, path);
     },
   };
-  const controller = initializeInlineEditor(document, {
+  const options: InlineEditorOptions = {
     pageCanvas,
     provider,
     drafts: new DraftStorage(storage),
     download: (_name, value) => downloads.push(value),
-  })!;
+    ...overrides,
+  };
+  const controller = initializeInlineEditor(document, options)!;
   return {
     document,
     window,
@@ -94,6 +100,7 @@ function fixture(
     settle,
     downloads,
     map,
+    options,
   };
 }
 
@@ -907,6 +914,15 @@ test('a stale provider snapshot leaves the guide read-only', async () => {
     /older source/,
   );
   assert.equal(document.querySelector('[data-editor-fallback]'), null);
+  assert.equal(
+    document.querySelector<HTMLButtonElement>('[data-editor-review]')!.disabled,
+    true,
+  );
+  assert.equal(
+    document.querySelector<HTMLButtonElement>('[data-editor-discard]')!
+      .disabled,
+    true,
+  );
 });
 
 test('clicking either highlighted side discards only that edit on a line', async () => {
@@ -1063,4 +1079,261 @@ test('mobile places Discard, Done and Submit together and keeps discard confirma
     f.document.querySelector('[data-editor-review] span')!.textContent,
     'Submit changes',
   );
+});
+
+test('account suspension removes private canvas and Done previews while retaining isolated drafts', async () => {
+  const store = new MemoryStore();
+  const f = fixture(store, '# Guide\nA paragraph', true, undefined, {
+    drafts: new DraftStorage(store, 'github:42'),
+    restoreReadingDrafts: false,
+  });
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  const first = f.controller.session!;
+  f.click('[data-canvas-drop]');
+  f.click('[data-canvas-new="heading"]');
+  const privateContent = first.content();
+  assert.equal(f.controller.checkpoint(), true);
+  f.click('[data-editor-exit]');
+  assert.match(f.document.body.textContent!, /New section/);
+  f.controller.suspend();
+  assert.doesNotMatch(f.document.body.textContent!, /New section/);
+  f.options.drafts = new DraftStorage(store, 'discord:42');
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  assert.equal(f.controller.session!.count, 0);
+  assert.ok(new DraftStorage(store, 'github:42').hasDraft(first.path));
+  f.controller.suspend();
+  f.options.drafts = new DraftStorage(store, 'github:42');
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  assert.equal(f.controller.session!.content(), privateContent);
+});
+
+test('session expiry cancels an in-flight source load before any canvas or draft restoration', async () => {
+  let resolve: ((value: ReturnType<typeof loaded>) => void) | undefined;
+  const f = fixture(undefined, source, true, undefined, {
+    restoreReadingDrafts: false,
+    provider: {
+      load: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    },
+  });
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  assert.ok(resolve);
+  f.controller.suspend();
+  resolve(loaded(source));
+  await f.settle();
+  assert.equal(f.controller.session, undefined);
+  assert.equal(f.document.querySelector('[data-inline-active]'), null);
+});
+
+test('eligibility gate leaves anonymous reading unchanged and does not fetch guide source', async () => {
+  let loads = 0;
+  const f = fixture(undefined, source, true, undefined, {
+    beforeEnter: async () => {
+      throw new Error('Sign in to edit');
+    },
+    provider: {
+      async load() {
+        loads++;
+        return loaded(source);
+      },
+    },
+    restoreReadingDrafts: false,
+  });
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  assert.equal(loads, 0);
+  assert.equal(f.controller.session, undefined);
+  assert.match(
+    f.document.querySelector('[data-editor-error]')!.textContent!,
+    /Sign in to edit/,
+  );
+  assert.equal(f.document.querySelector('[data-inline-active]'), null);
+});
+
+async function submissionFixture(
+  text = 'Original\r\nSecond\n',
+  existing = false,
+  dryRun = false,
+  delayed = false,
+) {
+  const { GuideApi } = await import('../src/lib/guide-api');
+  const { GuideSubmission } = await import('../src/lib/guide-submission');
+  const user = {
+    provider: 'github' as const,
+    githubId: '42',
+    githubLogin: 'mock',
+    username: 'mock',
+    globalName: '',
+    displayName: 'Mock',
+    avatar: '',
+    csrfToken: 'csrf',
+    canReviewPrs: false,
+  };
+  const branch = 'guide-editor/github-42/test';
+  let posts = 0;
+  let release!: () => void;
+  const gate = delayed
+    ? new Promise<void>((resolve) => (release = resolve))
+    : Promise.resolve();
+  const api = new GuideApi(
+    true,
+    (async (url, init) => {
+      if (String(url).endsWith('/auth/me'))
+        return new Response(JSON.stringify({ user }));
+      posts++;
+      await gate;
+      const payload = JSON.parse(init!.body as string);
+      return new Response(
+        JSON.stringify(
+          dryRun
+            ? {
+                dryRun: true,
+                message: 'Validated',
+                title: payload.title,
+                path: payload.path,
+                source: payload.source,
+                branch: payload.branch,
+                reviewBranch: branch,
+                user,
+                contentBytes: Buffer.byteLength(payload.content),
+                originalContentBytes: Buffer.byteLength(
+                  payload.originalContent,
+                ),
+              }
+            : {
+                prUrl: 'https://github.com/pvme/pvme-guides/pull/123',
+                branch,
+                path: payload.path,
+                reusedReview: existing,
+              },
+        ),
+        { status: existing || dryRun ? 200 : 201 },
+      );
+    }) as typeof fetch,
+    true,
+  );
+  await api.restore();
+  const store = new MemoryStore();
+  const provider = {
+    async load(path: string) {
+      return {
+        ...loaded(text, path),
+        ...(existing
+          ? {
+              existingReviewBranch: branch,
+              existingReviewUrl: 'https://github.com/pvme/pvme-guides/pull/123',
+            }
+          : {}),
+      };
+    },
+  };
+  const f = fixture(store, text, false, undefined, {
+    provider,
+    drafts: new DraftStorage(store, 'github:42'),
+    submission: new GuideSubmission(api, provider),
+    restoreReadingDrafts: false,
+  });
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  f.controller.session!.setDocument(text.replace('Original', 'Edited'));
+  f.options.drafts.save(f.controller.session!);
+  f.click('[data-editor-review]');
+  f.document.querySelector<HTMLInputElement>(
+    '[data-prepare-form] [name="title"]',
+  )!.value = 'Update';
+  f.document.querySelector<HTMLTextAreaElement>(
+    '[data-prepare-form] [name="notes"]',
+  )!.value = 'Reason';
+  return {
+    ...f,
+    get posts() {
+      return posts;
+    },
+    release: () => release?.(),
+  };
+}
+test('authenticated review shows real pending/success, keeps recovery export, and returns to published reading', async () => {
+  const f = await submissionFixture(undefined, false, false, true);
+  f.submit('[data-prepare-form]');
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 1);
+  assert.equal(
+    f.document.querySelector<HTMLButtonElement>('[data-prepare-update]')!
+      .disabled,
+    true,
+  );
+  assert.equal(
+    f.document.querySelector<HTMLElement>('[data-submit-export]')!.hidden,
+    false,
+  );
+  f.release();
+  await f.settle();
+  assert.match(
+    f.document.querySelector('[data-prepare-status]')!.textContent!,
+    /Created your pull request/,
+  );
+  assert.equal(
+    f.document.querySelector('[data-submit-pr]')!.getAttribute('href'),
+    'https://github.com/pvme/pvme-guides/pull/123',
+  );
+  assert.ok(f.options.drafts.hasDraft(f.map.path));
+  f.click('[data-submit-reading]');
+  assert.equal(f.controller.session, undefined);
+  assert.equal(f.options.drafts.hasDraft(f.map.path), false);
+  assert.match(f.document.querySelector('article')!.textContent!, /Original/);
+  assert.equal(f.document.querySelector('[data-local-draft-preview]'), null);
+});
+test('master replacement requires a checkbox; dry-run remains clearly unpublished with its draft', async () => {
+  const f = await submissionFixture(undefined, true, true);
+  assert.equal(
+    f.document.querySelector<HTMLElement>('[data-replacement-consent]')!.hidden,
+    false,
+  );
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 0);
+  assert.match(
+    f.document.querySelector('[data-prepare-status]')!.textContent!,
+    /Confirm replacement/,
+  );
+  const input = f.document.querySelector<HTMLInputElement>(
+    '[data-replace-review]',
+  )!;
+  input.checked = true;
+  input.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 1);
+  assert.match(
+    f.document.querySelector('[data-prepare-status]')!.textContent!,
+    /No PR was created or updated/,
+  );
+  assert.ok(f.options.drafts.hasDraft(f.map.path));
+  assert.equal(
+    f.document.querySelector<HTMLElement>('[data-submit-reading]')!.hidden,
+    true,
+  );
+});
+test('account suspension hides a late success and never retires the previous contributor draft', async () => {
+  const f = await submissionFixture(undefined, false, false, true);
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  f.controller.suspend();
+  f.options.drafts = new DraftStorage(f.storage, 'github:99');
+  f.release();
+  await f.settle();
+  assert.equal(f.controller.session, undefined);
+  assert.equal(
+    f.document.querySelector<HTMLElement>('[data-submit-result]')!.hidden,
+    true,
+  );
+  assert.ok(new DraftStorage(f.storage, 'github:42').hasDraft(f.map.path));
+  assert.equal(f.options.drafts.hasDraft(f.map.path), false);
 });

@@ -1,0 +1,100 @@
+.account-control {
+  position: relative;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+.account-control summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  list-style: none;
+}
+.account-control summary::-webkit-details-marker {
+  display: none;
+}
+.account-control summary span {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-control img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+.account-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: min(19rem, 90vw);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px #0005;
+  z-index: 60;
+}
+.account-panel p {
+  margin: 0 0 0.6rem;
+  overflow-wrap: anywhere;
+}
+.account-panel button,
+.auth-source-dialog button {
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.account-panel button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 0.4rem 0;
+}
+.account-panel button:hover {
+  border-color: var(--blue);
+}
+[data-account-error]:empty {
+  display: none;
+}
+.auth-source-dialog {
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  max-width: min(32rem, 92vw);
+  padding: 1.5rem;
+}
+.auth-source-dialog::backdrop {
+  background: #0009;
+}
+.auth-source-dialog .inline-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.homepage-account {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 40;
+}
+.site-header-actions {
+  align-items: center;
+  gap: 0.5rem;
+}
+@media (max-width: 600px) {
+  .account-control summary {
+    padding-inline: 0.5rem;
+  }
+  .account-control summary span {
+    max-width: 4rem;
+  }
+}

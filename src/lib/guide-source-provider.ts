@@ -23,5 +23,5 @@ export interface LoadedGuideSource {
 }
 
 export interface GuideSourceProvider {
-  load(path: string): Promise<LoadedGuideSource>;
+  load(path: string, source?: 'master' | 'user-pr'): Promise<LoadedGuideSource>;
 }

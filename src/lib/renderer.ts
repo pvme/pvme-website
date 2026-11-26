@@ -418,7 +418,10 @@ export function renderGuide(
           case 'text':
             return !linked && mappingEnabled && mapper
               ? (() => {
-                  const ref = mapper.reference(n, 'text');
+                  // Heading presentation can remove a Discord quote prefix.
+                  // A transformed leaf no longer represents its exact editable value.
+                  const ref =
+                    textValue === n.value ? mapper.reference(n, 'text') : '';
                   return ref
                     ? `<span${ref}>${escape(textValue)}</span>`
                     : escape(textValue);
@@ -642,7 +645,13 @@ export function renderGuide(
               : examples
                 ? 'mechanic-heading'
                 : '';
-          return `${(extra.get(b.id) || []).map((id) => `<span id="${escape(id)}" class="anchor"></span>`).join('')}<h${level}${headingClass ? ` class="${headingClass}"` : ''} id="${escape(ids.get(b.id) || `embedded-${b.range.startLine}`)}">${content}</h${level}>`;
+          const quoteLine =
+            b.children.length === 1 &&
+            b.children[0].type === 'text' &&
+            /^> +\S/.test(b.children[0].value)
+              ? ` data-quote-heading-line="${b.children[0].range.start.offset}"`
+              : '';
+          return `${(extra.get(b.id) || []).map((id) => `<span id="${escape(id)}" class="anchor"></span>`).join('')}<h${level}${headingClass ? ` class="${headingClass}"` : ''}${quoteLine} id="${escape(ids.get(b.id) || `embedded-${b.range.startLine}`)}">${content}</h${level}>`;
         }
         case 'paragraph': {
           const text = plain(b.children);

@@ -14,6 +14,14 @@ import { RichLineEditor } from './rich-line-editor';
 import { PageCanvasEditor } from './page-canvas-editor';
 import { EmojiAutocomplete } from './emoji-autocomplete';
 import { pageLinkTitle } from '../lib/page-link-title';
+import {
+  GuideSubmission,
+  reviewIdentity,
+  submissionFailure,
+  type ReplacementConsent,
+  type SubmissionReceipt,
+} from '../lib/guide-submission';
+import { guideEditorHref } from '../lib/guide-editor';
 
 export interface InlineEditorOptions {
   provider: GuideSourceProvider;
@@ -21,6 +29,10 @@ export interface InlineEditorOptions {
   download?: (name: string, value: string) => void;
   pageCanvas?: boolean;
   refreshEmojis?: boolean;
+  beforeEnter?: () => Promise<void>;
+  restoreReadingDrafts?: boolean;
+  onSourceFailure?: (path: string, error: unknown) => void;
+  submission?: GuideSubmission;
 }
 
 export function initializeInlineEditor(
@@ -87,6 +99,10 @@ export function initializeInlineEditor(
   let blocked: Extract<DraftRestore, { status: 'blocked' }> | undefined;
   let loading = false;
   let prepareGeneration = 0;
+  let lifecycleGeneration = 0;
+  let submissionPending = false;
+  let submitted: SubmissionReceipt | undefined;
+  let replacementConsent: ReplacementConsent | undefined;
   let persistenceError = '';
   let confirmAction: (() => void) | undefined;
   let resumeLineAfterLink = false;
@@ -94,7 +110,13 @@ export function initializeInlineEditor(
   const draftViews = new Map<HTMLElement, () => void>();
   const loadingViews = new Set<HTMLElement>();
   const restoreReadingDrafts = async () => {
-    if (!options.pageCanvas || session || loading) return;
+    if (
+      options.restoreReadingDrafts === false ||
+      !options.pageCanvas ||
+      session ||
+      loading
+    )
+      return;
     for (const article of doc.querySelectorAll<HTMLElement>(
       'article[data-guide-source]',
     )) {
@@ -188,10 +210,12 @@ export function initializeInlineEditor(
   });
   const invalidatePrepared = () => {
     prepareGeneration++;
-    message('[data-prepare-status]', '');
+    if (!submitted) message('[data-prepare-status]', '');
   };
   const update = (persist = true) => {
     if (!session) return;
+    replacementConsent = undefined;
+    get<HTMLInputElement>('[data-replace-review]').checked = false;
     invalidatePrepared();
     if (session.hasDocumentDraft && !blocked && !canvas) openCanvas();
     if (canvas) canvas.sync();
@@ -250,12 +274,17 @@ export function initializeInlineEditor(
     if (!article) return;
     loading = true;
     toolbar.hidden = false;
+    get<HTMLButtonElement>('[data-editor-review]').disabled = true;
+    get<HTMLButtonElement>('[data-editor-discard]').disabled = true;
     message(
       '[data-editor-status]',
       'Loading and checking the original source…',
     );
     message('[data-editor-error]', '');
+    const lifecycle = lifecycleGeneration;
     try {
+      await options.beforeEnter?.();
+      if (lifecycle !== lifecycleGeneration) return;
       const metadata = article.querySelector(
         'script[data-guide-source-map]',
       )?.textContent;
@@ -267,7 +296,9 @@ export function initializeInlineEditor(
       )
         throw new Error('Guide metadata does not match this article');
       const loaded = await options.provider.load(path!);
-      session = await EditSession.create(map, loaded);
+      const created = await EditSession.create(map, loaded);
+      if (lifecycle !== lifecycleGeneration) return;
+      session = created;
       for (const [view, clear] of draftViews) {
         if (view.dataset.guideSource !== path) continue;
         clear();
@@ -276,6 +307,41 @@ export function initializeInlineEditor(
       activeArticle = article;
       startTrigger = button;
       title = button.dataset.inlineEditTitle || loaded.name;
+      submitted = undefined;
+      replacementConsent = undefined;
+      get<HTMLInputElement>('[data-replace-review]').checked = false;
+      get('[data-replacement-consent]').hidden =
+        !options.submission ||
+        loaded.source !== 'master' ||
+        !loaded.existingReviewBranch;
+      get('[data-submit-export]').hidden = !options.submission;
+      get('[data-submit-reading]').hidden = true;
+      get('[data-submit-result]').hidden = true;
+      get('[data-submit-recovery]').hidden = !options.submission;
+      get<HTMLAnchorElement>('[data-submit-editor]').href = guideEditorHref({
+        path: path!,
+      });
+      const sourceNotice = doc.querySelector<HTMLElement>(
+        '[data-review-source]',
+      );
+      if (sourceNotice) {
+        const reviewUrl = loaded.existingReviewUrl || loaded.prUrl;
+        sourceNotice.hidden = !reviewUrl;
+        sourceNotice.textContent =
+          loaded.source === 'user-pr'
+            ? 'Editing your submitted update. '
+            : options.submission
+              ? 'An existing submitted update is retained. Confirm replacement below to submit this live-guide version. '
+              : 'An existing submitted update is retained. This export does not authorise replacing it. ';
+        if (reviewUrl && /^https:\/\/github\.com\//.test(reviewUrl)) {
+          const link = doc.createElement('a');
+          link.href = reviewUrl;
+          link.textContent = 'View submitted update';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          sourceNotice.append(link);
+        }
+      }
       get<HTMLInputElement>('[data-prepare-form] [name="title"]').value =
         `Update ${title}`.slice(0, 120);
       get<HTMLTextAreaElement>('[data-prepare-form] [name="notes"]').value = '';
@@ -294,11 +360,13 @@ export function initializeInlineEditor(
         preventScroll: true,
       });
     } catch (error) {
+      if (lifecycle !== lifecycleGeneration) return;
       message(
         '[data-editor-status]',
         'Editing unavailable. The guide remains unchanged.',
       );
       message('[data-editor-error]', failure(error));
+      options.onSourceFailure?.(path!, error);
     } finally {
       loading = false;
     }
@@ -351,7 +419,8 @@ export function initializeInlineEditor(
     diff.replaceChildren();
     reviewedContent = session.content();
     get('[data-review-empty]').hidden = !!session.count;
-    get<HTMLButtonElement>('[data-prepare-update]').disabled = !session.count;
+    get<HTMLButtonElement>('[data-prepare-update]').disabled =
+      !session.count || submissionPending || !!submitted;
     if (!session.count) return;
     let changeIndex = 0;
     reviewedEdits = [];
@@ -694,7 +763,9 @@ export function initializeInlineEditor(
         return;
       }
     }
-    const clearDraftView = canvas?.close(!!session?.count && !blocked);
+    const clearDraftView = canvas?.close(
+      !!session?.count && !blocked && !submitted,
+    );
     if (clearDraftView && activeArticle)
       draftViews.set(activeArticle, clearDraftView);
     canvas = undefined;
@@ -711,7 +782,7 @@ export function initializeInlineEditor(
     'submit',
     async (event) => {
       event.preventDefault();
-      if (!session || blocked || !session.count) return;
+      if (!session || blocked || !session.count || submissionPending) return;
       invalidatePrepared();
       const currentSession = session,
         generation = prepareGeneration;
@@ -722,8 +793,58 @@ export function initializeInlineEditor(
         '[data-prepare-form] [name="notes"]',
       ).value;
       message('[data-prepare-status]', 'Rechecking the source snapshot…');
+      if (options.submission) {
+        submissionPending = true;
+        message(
+          '[data-prepare-status]',
+          'Checking source and submitting your update…',
+        );
+        get('[data-prepare-update]').textContent = 'Submitting…';
+        const lifecycle = lifecycleGeneration;
+        get<HTMLButtonElement>('[data-prepare-update]').disabled = true;
+        try {
+          const receipt = await options.submission.submit(
+            currentSession,
+            { title, notes },
+            options.drafts,
+            replacementConsent,
+          );
+          if (session !== currentSession || lifecycle !== lifecycleGeneration)
+            return;
+          if ('dryRun' in receipt.result) {
+            message(
+              '[data-prepare-status]',
+              'Dry-run validation passed. No PR was created or updated. Your draft is retained.',
+            );
+          } else {
+            submitted = receipt;
+            get('[data-submit-result]').hidden = false;
+            get<HTMLAnchorElement>('[data-submit-pr]').href =
+              receipt.result.prUrl;
+            get('[data-submit-reading]').hidden = false;
+            message(
+              '[data-prepare-status]',
+              `${receipt.result.reusedReview ? 'Updated your existing pull request.' : 'Created your pull request.'} The published guide has not changed. Return to guide to finish; newer edits will be retained.`,
+            );
+          }
+        } catch (error) {
+          replacementConsent = undefined;
+          get<HTMLInputElement>('[data-replace-review]').checked = false;
+          if (session === currentSession && lifecycle === lifecycleGeneration)
+            message('[data-prepare-status]', submissionFailure(error));
+        } finally {
+          submissionPending = false;
+          get('[data-prepare-update]').textContent = 'Submit for review';
+          get<HTMLButtonElement>('[data-prepare-update]').disabled =
+            !!submitted;
+        }
+        return;
+      }
       try {
-        const current = await options.provider.load(currentSession.path);
+        const current = await options.provider.load(
+          currentSession.path,
+          currentSession.loaded.source,
+        );
         const payload = await currentSession.prepareUpdate(
           { title, notes },
           current,
@@ -742,12 +863,99 @@ export function initializeInlineEditor(
     },
   );
   get('[data-prepare-form]').addEventListener('input', invalidatePrepared);
+  get('[data-replace-review]').addEventListener('change', () => {
+    replacementConsent =
+      session && get<HTMLInputElement>('[data-replace-review]').checked
+        ? { identity: options.drafts.identity, review: reviewIdentity(session) }
+        : undefined;
+  });
+  get('[data-submit-export]').addEventListener('click', async () => {
+    if (!session) return;
+    try {
+      const payload = await session.prepareUpdate(
+        {
+          title:
+            get<HTMLInputElement>('[data-prepare-form] [name="title"]').value ||
+            `Update ${session.path}`,
+          notes:
+            get<HTMLTextAreaElement>('[data-prepare-form] [name="notes"]')
+              .value || 'Draft recovery export',
+        },
+        session.loaded,
+      );
+      download('pvme-guide-update.json', JSON.stringify(payload, null, 2));
+    } catch (error) {
+      message('[data-prepare-status]', failure(error));
+    }
+  });
+  get('[data-submit-reading]').addEventListener('click', () => {
+    if (!submitted || !options.submission || submissionPending) return;
+    if (canvas && !canvas.finish()) return;
+    if (!lineEditor.finish()) return;
+    options.submission.complete(submitted);
+    canvas?.close(false);
+    canvas = undefined;
+    if (session) updateDraftPreview(doc, session, false);
+    session = undefined;
+    activeArticle = undefined;
+    blocked = undefined;
+    submitted = undefined;
+    reviewDialog.close();
+    toolbar.hidden = true;
+    invalidatePrepared();
+  });
   doc.defaultView?.addEventListener('beforeunload', (event) => {
     if ((session?.count && persistenceError) || canvas?.hasUnappliedChanges) {
       event.preventDefault();
     }
   });
   return {
+    checkpoint() {
+      if (canvas && !canvas.finish()) return false;
+      if (!lineEditor.finish()) return false;
+      if (session && !blocked) {
+        persistenceError = options.drafts.save(session) || '';
+        if (persistenceError) {
+          message('[data-editor-error]', persistenceError);
+          return false;
+        }
+      }
+      return true;
+    },
+    suspend() {
+      lifecycleGeneration++;
+      invalidatePrepared();
+      canvas?.finish();
+      lineEditor.finish();
+      if (session && !blocked) options.drafts.save(session);
+      canvas?.close(false);
+      canvas = undefined;
+      if (session) updateDraftPreview(doc, session, false);
+      for (const clear of draftViews.values()) clear();
+      draftViews.clear();
+      session = undefined;
+      activeArticle = undefined;
+      blocked = undefined;
+      submitted = undefined;
+      replacementConsent = undefined;
+      get<HTMLInputElement>('[data-replace-review]').checked = false;
+      get('[data-submit-result]').hidden = true;
+      get('[data-submit-reading]').hidden = true;
+      get<HTMLAnchorElement>('[data-submit-pr]').removeAttribute('href');
+      for (const dialog of [valueDialog, reviewDialog, confirmDialog])
+        if (dialog.open) dialog.close();
+      get('[data-source-diff]').replaceChildren();
+      get('[data-value-fields]').replaceChildren();
+      get('[data-review-guide]').textContent = '';
+      get<HTMLInputElement>('[data-prepare-form] [name="title"]').value = '';
+      get<HTMLTextAreaElement>('[data-prepare-form] [name="notes"]').value = '';
+      const notice = doc.querySelector<HTMLElement>('[data-review-source]');
+      if (notice) {
+        notice.replaceChildren();
+        notice.hidden = true;
+      }
+      toolbar.hidden = true;
+    },
     get session() {
       return session;
     },

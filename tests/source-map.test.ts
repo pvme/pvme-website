@@ -430,3 +430,44 @@ test('render cache refreshes source and fingerprint together', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const style of ['mage', 'necro', 'range']) {
+  test(`DPM ${style} headings do not map hidden quote prefixes`, () => {
+    const path = `dpm-advice/dpm-advice-${style}.txt`;
+    const source = readFileSync(
+      join(process.env.GUIDES_DIR || '../pvme-guides', path),
+      'utf8',
+    );
+    const rendered = render(source, path);
+    const map = assertMappings(source, rendered);
+    assert.ok(map.entries.length);
+    assert.ok(!map.entries.some((entry) => entry.value === '> '));
+  });
+}
+test('heading quote presentation leaves structural syntax unmapped without changing the reading DOM', () => {
+  for (const source of [
+    '# > __Visible__\r\n> quoted\r\n> \r\n> more',
+    '# > Plain heading\nOrdinary > inline text\n',
+  ]) {
+    const mapped = render(source);
+    const map = assertMappings(source, mapped);
+    assert.ok(!map.entries.some((entry) => entry.value.startsWith('> ')));
+    const document = parseHTML(mapped.html).document;
+    document
+      .querySelectorAll('span[data-edit-ref]')
+      .forEach((element) => element.replaceWith(...element.childNodes));
+    document
+      .querySelectorAll('[data-edit-ref],[data-edit-url]')
+      .forEach((element) => {
+        element.removeAttribute('data-edit-ref');
+        element.removeAttribute('data-edit-url');
+      });
+    assert.equal(
+      document.toString(),
+      parseHTML(renderGuide(source, guide, '', {}).html).document.toString(),
+    );
+    assert.ok(
+      mapped.html.includes('<blockquote>') || source.includes('Plain heading'),
+    );
+  }
+});

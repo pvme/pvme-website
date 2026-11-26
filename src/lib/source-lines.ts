@@ -278,7 +278,15 @@ export function sourceLines(
                 entry.range.end.offset <= range.end.offset,
             )
             .map((entry) => entry.id);
-          if (!entryIds.length) continue;
+          // A plain Discord heading can lose its only inline mapping because
+          // the renderer hides its leading quote marker. The whole physical
+          // line remains editable through the existing prefix-preserving model.
+          const plainQuoteHeading =
+            block.type === 'heading' &&
+            nodes.length === 1 &&
+            nodes[0].type === 'text' &&
+            /^> +\S/.test(nodes[0].value);
+          if (!entryIds.length && !plainQuoteHeading) continue;
           const start = source.lastIndexOf('\n', range.start.offset - 1) + 1;
           const prefix = source.slice(start, range.start.offset);
           const raw = source.slice(range.start.offset, range.end.offset);

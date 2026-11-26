@@ -1,0 +1,41 @@
+---
+import '../styles/account.css';
+---
+
+<details
+  class="account-control"
+  data-account
+  hidden={
+    !import.meta.env.DEV && import.meta.env.PUBLIC_AUTHENTICATION !== 'true'
+  }
+>
+  <summary aria-label="Contributor account">
+    <img
+      data-account-avatar
+      hidden
+      width="24"
+      height="24"
+      alt=""
+      referrerpolicy="no-referrer"
+    />
+    <span data-account-name>Account</span>
+  </summary>
+  <div class="account-panel">
+    <p data-account-status role="status">
+      Checking session…
+    </p>
+    <button type="button" data-login="discord">
+      Log in with Discord
+    </button>
+    <button type="button" data-login="github">
+      Log in with GitHub
+    </button>
+    <button type="button" data-logout hidden>
+      Log out
+    </button>
+    <button type="button" data-auth-refresh>
+      Refresh session
+    </button>
+    <p data-account-error role="alert"></p>
+  </div>
+</details>
