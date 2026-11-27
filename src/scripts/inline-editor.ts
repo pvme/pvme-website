@@ -66,12 +66,14 @@ export function initializeInlineEditor(
       : wideToolbar?.matches
         ? secondary
         : menu;
-    get('[data-editor-discard]').textContent = mobileToolbar?.matches
-      ? 'Discard'
-      : 'Discard draft';
+    get('[data-editor-discard] [data-action-label]').textContent =
+      mobileToolbar?.matches ? 'Discard' : 'Discard draft';
     get('[data-editor-review] span').textContent = mobileToolbar?.matches
       ? 'Submit'
       : 'Submit changes';
+    get('[data-editor-exit]').textContent = mobileToolbar?.matches
+      ? 'Done'
+      : 'Exit editor';
     const action = get('[data-editor-discard]');
     if (action.parentElement !== target) {
       const focused = doc.activeElement === action;

@@ -1,0 +1,22 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import { buttonClasses, type ButtonVariant } from '../lib/buttons';
+interface Props extends HTMLAttributes<'button'> {
+  as?: 'button' | 'summary';
+  variant?: ButtonVariant;
+}
+const {
+  as: Tag = 'button',
+  variant = 'secondary',
+  class: className,
+  ...props
+} = Astro.props;
+---
+
+<Tag
+  {...props}
+  type={Tag === 'button' ? props.type || 'button' : undefined}
+  class:list={[buttonClasses(variant), className]}
+>
+  <slot />
+</Tag>

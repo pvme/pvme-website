@@ -2,6 +2,7 @@
 import '../styles/inline-editor.css';
 import ReviewChangesDialog from './ReviewChangesDialog.astro';
 import Icon from './Icon.astro';
+import Button from './Button.astro';
 ---
 
 <header
@@ -22,6 +23,7 @@ import Icon from './Icon.astro';
   </div>
   <div class="inline-editor-tools" role="group" aria-label="Editing tools">
     <div data-editor-history></div>
+    <div class="inline-editor-diagnostics" data-editor-diagnostics></div>
     <div
       class="inline-editor-secondary"
       data-editor-secondary
@@ -29,42 +31,59 @@ import Icon from './Icon.astro';
       aria-label="Additional editing actions"
     ></div>
     <details class="inline-editor-options" data-editor-options>
-      <summary aria-label="Editing options" title="Editing options">
-        ⋯
-      </summary>
+      <Button
+        as="summary"
+        variant="icon"
+        aria-label="Editing options"
+        title="Editing options"
+      >
+        <Icon name="more" size={16} />
+      </Button>
       <div class="inline-editor-menu">
-        <button type="button" data-editor-discard>
-          Discard draft
-        </button>
+        <Button
+          variant="destructive"
+          data-editor-discard
+          aria-label="Discard draft"
+          title="Discard draft"
+        >
+          <Icon name="discard" size={16} />
+          <span data-action-label>Discard draft</span>
+        </Button>
         <div data-draft-recovery hidden>
           <p data-draft-message></p>
-          <button type="button" data-draft-export>
-            Export stored draft for recovery
-          </button>
-          <button type="button" data-draft-discard>
-            Discard stored draft and continue
-          </button>
+          <Button data-draft-export title="Export stored draft for recovery">
+            Export stored draft
+          </Button>
+          <Button
+            variant="destructive"
+            data-draft-discard
+            title="Discard stored draft and continue"
+          >
+            Discard stored draft
+          </Button>
         </div>
       </div>
     </details>
   </div>
   <div class="inline-editor-actions" role="group" aria-label="Finish editing">
-    <button
+    <Button
       type="button"
       data-editor-exit
       title="Exit editing and keep your draft"
     >
-      Done
-    </button>
-    <button
+      Exit editor
+    </Button>
+    <Button
       type="button"
       data-editor-review
       class="inline-review-action"
+      variant="primary"
       aria-label="Submit changes"
+      title="Submit changes"
     >
-      <Icon name="overview" size={15} />
+      <Icon name="submit" size={16} />
       <span>Submit changes</span>
-    </button>
+    </Button>
   </div>
   <p data-editor-error role="alert"></p>
 </header>

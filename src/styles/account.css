@@ -3,18 +3,9 @@
   font-size: 0.875rem;
   flex-shrink: 0;
 }
-.account-control summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  border: 1px solid var(--border);
+.account-control .account-pill {
+  border-color: var(--button-secondary-border);
   border-radius: 999px;
-  padding: 0.35rem 0.8rem;
-  list-style: none;
-}
-.account-control summary::-webkit-details-marker {
-  display: none;
 }
 .account-control summary span {
   max-width: 10rem;
@@ -91,12 +82,9 @@
 }
 .site-header-actions {
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--button-group-gap);
 }
 @media (max-width: 600px) {
-  .account-control summary {
-    padding-inline: 0.5rem;
-  }
   .account-control summary span {
     max-width: 4rem;
   }

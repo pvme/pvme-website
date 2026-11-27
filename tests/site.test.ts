@@ -24,6 +24,21 @@ test('guide contributions live in the header and search lives in the navigation'
   assert.equal(document.querySelector('.site-header [data-search]'), null);
   assert.equal(document.querySelectorAll('[data-guide-actions]').length, 1);
   assert.ok(document.querySelector('.site-header [data-suggest-improvement]'));
+  const editPage = document.querySelector('.guide-edit-menu > summary')!;
+  const submitChanges = document.querySelector('[data-editor-review]')!;
+  assert.ok(editPage.classList.contains('pvme-button--primary'));
+  assert.ok(submitChanges.classList.contains('pvme-button--primary'));
+  for (const selector of ['[data-suggest-improvement]', '[data-editor-exit]'])
+    assert.ok(
+      document
+        .querySelector(selector)!
+        .classList.contains('pvme-button--secondary'),
+    );
+  assert.ok(
+    document
+      .querySelector('[data-editor-discard]')!
+      .classList.contains('pvme-button--destructive'),
+  );
   const menu = document.querySelector('.site-header .guide-edit-menu')!;
   assert.ok(menu.textContent?.includes('Edit (in place)'));
   const inlineEdit = menu.querySelector('button[data-inline-edit-path]')!;

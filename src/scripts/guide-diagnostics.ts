@@ -4,6 +4,7 @@ import {
   type GuideIssue,
 } from '../lib/guide-validation';
 import { textareaSourceOffset } from '../lib/textarea-source';
+import { buttonClasses } from '../lib/buttons';
 import {
   canvasBlocks,
   canvasLabels,
@@ -73,6 +74,7 @@ export class GuideDiagnostics {
     this.shortcuts.hidden = true;
     this.counter = doc.createElement('button');
     this.counter.type = 'button';
+    this.counter.className = buttonClasses('secondary');
     this.counter.dataset.editorIssues = '';
     this.counter.addEventListener('click', () => {
       this.panel.open = true;
@@ -81,6 +83,7 @@ export class GuideDiagnostics {
     });
     const sourceButton = doc.createElement('button');
     sourceButton.type = 'button';
+    sourceButton.className = buttonClasses('secondary');
     sourceButton.textContent = 'Page source';
     sourceButton.dataset.editorPageSource = '';
     sourceButton.setAttribute('aria-label', 'Edit whole page source');
@@ -89,7 +92,10 @@ export class GuideDiagnostics {
       if (source !== undefined) this.editSource(0, 0, source);
     });
     this.shortcuts.append(this.counter, sourceButton);
-    doc.querySelector('.inline-editor-status')?.append(this.shortcuts);
+    (
+      doc.querySelector('[data-editor-diagnostics]') ||
+      doc.querySelector('.inline-editor-status')
+    )?.append(this.shortcuts);
     if (!this.editing.host)
       doc.querySelector('.inline-editor-status')?.append(this.panel);
 
@@ -153,6 +159,13 @@ export class GuideDiagnostics {
       ? `Issues: ${this.issues.length}`
       : 'No issues';
     this.counter.title = issueSummary(this.issues);
+    this.counter.dataset.severity = this.issues.some(
+      (issue) => issue.severity === 'error',
+    )
+      ? 'error'
+      : this.issues.length
+        ? 'warning'
+        : 'none';
     this.counter.setAttribute(
       'aria-label',
       `Guide issues: ${issueSummary(this.issues)}`,

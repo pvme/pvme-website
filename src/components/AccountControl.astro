@@ -1,5 +1,6 @@
 ---
 import '../styles/account.css';
+import Button from './Button.astro';
 ---
 
 <details
@@ -9,7 +10,12 @@ import '../styles/account.css';
     !import.meta.env.DEV && import.meta.env.PUBLIC_AUTHENTICATION !== 'true'
   }
 >
-  <summary aria-label="Contributor account">
+  <Button
+    as="summary"
+    variant="ghost"
+    class="account-pill"
+    aria-label="Contributor account"
+  >
     <img
       data-account-avatar
       hidden
@@ -19,22 +25,19 @@ import '../styles/account.css';
       referrerpolicy="no-referrer"
     />
     <span data-account-name>Account</span>
-  </summary>
+  </Button>
   <div class="account-panel">
     <p data-account-status role="status">
       Checking session…
     </p>
-    <button type="button" data-login="discord">
+    <button type="button" data-login="discord" hidden>
       Log in with Discord
     </button>
-    <button type="button" data-login="github">
+    <button type="button" data-login="github" hidden>
       Log in with GitHub
     </button>
     <button type="button" data-logout hidden>
       Log out
-    </button>
-    <button type="button" data-auth-refresh>
-      Refresh session
     </button>
     <p data-account-error role="alert"></p>
   </div>

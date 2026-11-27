@@ -4,6 +4,7 @@ import '../styles/global.css';
 import '../styles/reference.css';
 import '../styles/polish.css';
 import '../styles/components.css';
+import '../styles/buttons.css';
 import Search from './Search.astro';
 import Breadcrumbs from './Breadcrumbs.astro';
 import MediaOverlay from './MediaOverlay.astro';
@@ -205,7 +206,7 @@ const isActive = (href: string) =>
       )}
       <slot />
       {homepage && (
-        <div class="homepage-account">
+        <div class="homepage-account" hidden>
           <AccountControl />
         </div>
       )}

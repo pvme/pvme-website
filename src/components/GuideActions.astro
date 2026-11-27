@@ -1,6 +1,7 @@
 ---
 import type { Guide } from '../lib/catalogue';
 import Icon from './Icon.astro';
+import Button from './Button.astro';
 import { guideEditorHref } from '../lib/guide-editor';
 const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
 ---
@@ -12,12 +13,12 @@ const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
   data-guide-title={guide.title}
 >
   <details class="guide-edit-menu">
-    <summary aria-label="Edit page">
+    <Button as="summary" variant="primary" aria-label="Edit page">
       <Icon name="contribute" size={16} />
-      <span class="guide-action-label">Edit Page</span>
+      <span class="guide-action-label">Edit page</span>
       <span class="guide-action-mobile-label">Edit</span>
-      <span aria-hidden="true">▾</span>
-    </summary>
+      <Icon name="chevronDown" size={16} />
+    </Button>
     <div class="guide-edit-options">
       <button
         type="button"
@@ -41,18 +42,19 @@ const { guide } = Astro.props as { guide: Pick<Guide, 'path' | 'title'> };
       </a>
     </div>
   </details>
-  <button
+  <Button
     type="button"
     class="guide-suggest"
     data-suggest-improvement
     aria-label="Suggest improvement"
+    title="Suggest improvement"
     aria-haspopup="dialog"
     aria-controls="suggestion-dialog"
   >
-    <Icon name="suggest" size={18} />
+    <Icon name="suggest" size={16} />
     <span class="guide-action-label">Suggest improvement</span>
     <span class="guide-action-mobile-label">Suggest</span>
-  </button>
+  </Button>
 </div>
 <script>
   document.addEventListener('click', (event) => {

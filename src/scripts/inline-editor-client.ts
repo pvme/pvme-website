@@ -71,6 +71,8 @@ function renderAccount() {
   account.querySelector('[data-account-status]')!.textContent = user
     ? `Signed in with ${user.provider === 'github' ? 'GitHub' : 'Discord'}`
     : 'Sign in to contribute';
+  for (const button of account.querySelectorAll<HTMLElement>('[data-login]'))
+    button.hidden = !!user;
   account.querySelector<HTMLElement>('[data-logout]')!.hidden = !user;
   const image = account.querySelector<HTMLImageElement>(
     '[data-account-avatar]',
@@ -257,7 +259,7 @@ async function restore() {
   } catch {
     renderAccount();
     status(
-      'Session could not be checked. Your drafts are retained. Try Refresh session.',
+      'Session could not be checked. Your drafts are retained. Reload the page to try again.',
       false,
     );
   }
@@ -302,8 +304,6 @@ if (flags.authentication) {
       button.disabled = false;
     }
   };
-  account.querySelector<HTMLButtonElement>('[data-auth-refresh]')!.onclick =
-    () => void restore();
   window.addEventListener('focus', () => void restore());
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) void restore();

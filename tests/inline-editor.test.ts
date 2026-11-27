@@ -25,7 +25,10 @@ import {
 } from './helpers';
 
 const component = (path: string) =>
-  readFileSync(path, 'utf8').replace(/^---[\s\S]*?---/, '');
+  readFileSync(path, 'utf8')
+    .replace(/^---[\s\S]*?---/, '')
+    .replace(/<Button\b/g, '<button')
+    .replace(/<\/Button>/g, '</button>');
 function fixture(
   storage = new MemoryStore(),
   text = source,
@@ -118,6 +121,26 @@ test('live guide diagnostics navigate current blocks, refresh after undo/redo an
   const f = fixture(store, text, true);
   f.click('[data-inline-edit-path]');
   await f.settle();
+  assert.ok(
+    f.document
+      .querySelector('[data-canvas-undo]')!
+      .classList.contains('pvme-button--icon'),
+  );
+  assert.ok(
+    f.document
+      .querySelector('[data-canvas-redo]')!
+      .classList.contains('pvme-button--icon'),
+  );
+  assert.ok(
+    f.document
+      .querySelector('[data-editor-issues]')!
+      .classList.contains('pvme-button--secondary'),
+  );
+  assert.ok(
+    f.document
+      .querySelector('[data-editor-page-source]')!
+      .classList.contains('pvme-button--secondary'),
+  );
   assert.ok(f.document.querySelector('[data-issue-code="HEADING_UNDERLINE"]'));
   f.click('[data-guide-diagnostics] [data-issue-code="HEADING_UNDERLINE"]');
   assert.equal(
@@ -1348,7 +1371,7 @@ test('mobile places Discard, Done and Submit together and keeps discard confirma
     f.document.querySelector('[data-editor-secondary] [data-editor-discard]'),
   );
   assert.equal(
-    f.document.querySelector('[data-editor-discard]')!.textContent,
+    f.document.querySelector('[data-editor-discard]')!.textContent!.trim(),
     'Discard draft',
   );
   assert.equal(

@@ -1,3 +1,5 @@
+import { buttonClasses } from '../lib/buttons';
+import { createActionIcon } from '../lib/action-icons';
 import {
   initializePresetCarousel,
   initializeStandaloneMedia,
@@ -137,7 +139,7 @@ export class PageCanvasEditor {
     this.root.className = 'page-canvas';
     this.root.setAttribute('aria-label', 'Guide page canvas');
     this.controls = doc.createElement('div');
-    this.controls.className = 'canvas-session-tools';
+    this.controls.className = 'canvas-session-tools pvme-button-group';
     this.controls.setAttribute('role', 'group');
     this.controls.setAttribute('aria-label', 'Edit history');
     this.status = doc.createElement('p');
@@ -148,25 +150,13 @@ export class PageCanvasEditor {
       this.button('Redo', () => this.history(true), 'canvasRedo'),
       this.status,
     );
-    for (const [selector, path, label] of [
-      ['[data-canvas-undo]', 'M9 5 4 10l5 5 M4 10h10a6 6 0 0 1 0 12', 'Undo'],
-      ['[data-canvas-redo]', 'm15 5 5 5-5 5 M20 10H10a6 6 0 0 0 0 12', 'Redo'],
-    ]) {
+    for (const [selector, name, label] of [
+      ['[data-canvas-undo]', 'undo', 'Undo'],
+      ['[data-canvas-redo]', 'redo', 'Redo'],
+    ] as const) {
       const button = this.controls.querySelector<HTMLButtonElement>(selector)!;
-      const icon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      icon.setAttribute('viewBox', '0 0 24 24');
-      icon.setAttribute('width', '16');
-      icon.setAttribute('height', '16');
-      icon.setAttribute('fill', 'none');
-      icon.setAttribute('stroke', 'currentColor');
-      icon.setAttribute('stroke-width', '1.7');
-      icon.setAttribute('stroke-linecap', 'round');
-      icon.setAttribute('stroke-linejoin', 'round');
-      icon.setAttribute('aria-hidden', 'true');
-      const shape = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
-      shape.setAttribute('d', path);
-      icon.append(shape);
-      button.replaceChildren(icon);
+      button.className = buttonClasses('icon');
+      button.replaceChildren(createActionIcon(doc, name));
       button.title = label;
       button.setAttribute('aria-label', label);
     }

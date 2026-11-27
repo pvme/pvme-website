@@ -2,8 +2,10 @@
 const { name, size = 22 } = Astro.props;
 import { combatStyleFile } from '../lib/combat-styles';
 import { url } from '../lib/catalogue';
+import { actionIconPaths } from '../lib/action-icons';
 const styleFile = combatStyleFile(name);
 const paths: Record<string, string> = {
+  ...actionIconPaths,
   suggest:
     'M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z M7 9h10 M7 13h7',
   contribute: 'm16 3 5 5 M4 15 16 3l5 5L9 20l-6 1 1-6Z M4 15l5 5',
