@@ -23,7 +23,7 @@ test('production browser assets contain no proxy secret, local upstream or brows
     const content = readFileSync(file, 'utf8');
     assert.doesNotMatch(
       content,
-      /build-safety-sentinel-local-only|browser-mock-local-only|X-PVME-Submit-Secret|X-PVME-Proxy-Origin|http:\/\/localhost:8080|Mock contributor|\/auth\/dev-session/,
+      /build-safety-sentinel-local-only|browser-mock-local-only|X-PVME-Submit-Secret|X-PVME-Proxy-Origin|PVME_SUBMIT_SECRET|http:\/\/localhost:(?:4321|8080)|Mock contributor|\/__test|\/auth\/dev-session|pvme-guide-api-local/,
     );
   }
 });

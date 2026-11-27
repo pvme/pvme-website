@@ -1,10 +1,17 @@
 import type { LoadedGuideSource } from './guide-source-provider';
-import type { GuideUpdatePayload } from './edit-session';
+import type { SubmissionRequest } from './submission-contract';
+import {
+  parseReviewState,
+  validateLoadedReview,
+  validateReviewOwner,
+  type ReviewVersion,
+  type ContributorIdentity,
+} from './review-state';
 import {
   record,
   parsePublicUser,
   parseSubmissionResult,
-  validateUpdate,
+  validateStrictUpdate,
   SubmissionUncertainError,
 } from './submission-contract';
 
@@ -28,9 +35,12 @@ export interface ExistingReviewChoice {
   prUrl: string;
   liveBranch: 'master';
   baseBranch: 'master';
+  reviewState: ReviewVersion;
 }
 export type GuideSourceChoice = 'auto' | 'master' | 'review';
-export const contributorId = (user: PublicUser | null): string | null =>
+export const contributorId = (
+  user: PublicUser | null,
+): ContributorIdentity | null =>
   user
     ? user.provider === 'github'
       ? `github:${user.githubId}`
@@ -122,12 +132,105 @@ export class GuideApi {
     this.restoration = undefined;
     this.setUser(null);
   }
-  load(path: string, source: GuideSourceChoice = 'auto') {
-    return this.json<LoadedGuideSource | ExistingReviewChoice>(
+  async verifyLocalDryRun() {
+    if (!this.development)
+      throw new Error(
+        'Unverified review metadata is disabled outside local development.',
+      );
+    const health = await this.json<Record<string, unknown>>('/');
+    if (
+      health.ok !== true ||
+      health.mode !== 'dry-run' ||
+      health.repo !== 'pvme/pvme-guides' ||
+      health.baseBranch !== 'master'
+    )
+      throw new Error(
+        'Local backend dry-run mode could not be verified. Keep your draft.',
+      );
+    return true;
+  }
+  async load(path: string, source: GuideSourceChoice = 'auto') {
+    const user = this.user;
+    const identity = contributorId(user);
+    const value = await this.json<Record<string, unknown>>(
       `/guides/load?${new URLSearchParams({ path, source })}`,
     );
+    if (
+      value.path !== path ||
+      value.repo !== 'pvme/pvme-guides' ||
+      value.baseBranch !== 'master' ||
+      typeof value.name !== 'string'
+    )
+      throw new Error('Invalid guide-load response. Keep/export your draft.');
+    let localDryRunVerified = false;
+    if (record(value.reviewState) && value.reviewState.state === 'unverified')
+      localDryRunVerified =
+        value.dryRun === true && (await this.verifyLocalDryRun());
+    const reviewState = parseReviewState(
+      value.reviewState,
+      localDryRunVerified,
+    );
+    if (identity && user) validateReviewOwner(reviewState, identity, user);
+    if (value.hasExistingReview === true) {
+      if (
+        !identity ||
+        reviewState.state !== 'present' ||
+        value.reviewBranch !== reviewState.branch ||
+        value.prUrl !== reviewState.prUrl ||
+        value.liveBranch !== 'master' ||
+        Object.hasOwn(value, 'originalText')
+      )
+        throw new Error('Invalid existing-review choice. Reload the source.');
+      return {
+        hasExistingReview: true,
+        path,
+        name: value.name,
+        repo: 'pvme/pvme-guides',
+        baseBranch: 'master',
+        liveBranch: 'master',
+        reviewBranch: reviewState.branch,
+        prUrl: reviewState.prUrl,
+        reviewState,
+      } satisfies ExistingReviewChoice;
+    }
+    if (
+      typeof value.originalText !== 'string' ||
+      !['master', 'user-pr'].includes(value.source as string) ||
+      typeof value.branch !== 'string' ||
+      typeof value.prUrl !== 'string' ||
+      (value.existingReviewBranch !== undefined &&
+        typeof value.existingReviewBranch !== 'string') ||
+      (value.existingReviewUrl !== undefined &&
+        typeof value.existingReviewUrl !== 'string') ||
+      (source === 'master' && value.source !== 'master') ||
+      (source === 'review' && value.source !== 'user-pr')
+    )
+      throw new Error('Invalid selected-source response.');
+    const loaded: LoadedGuideSource = {
+      path,
+      name: value.name,
+      repo: 'pvme/pvme-guides',
+      baseBranch: 'master',
+      originalText: value.originalText,
+      source: value.source as LoadedGuideSource['source'],
+      branch: value.branch,
+      prUrl: value.prUrl,
+      reviewState,
+      ...(identity ? { contributor: identity } : {}),
+      ...(value.existingReviewBranch !== undefined
+        ? { existingReviewBranch: value.existingReviewBranch as string }
+        : {}),
+      ...(value.existingReviewUrl !== undefined
+        ? { existingReviewUrl: value.existingReviewUrl as string }
+        : {}),
+      ...(value.dryRun === true ? { dryRun: true } : {}),
+      ...(localDryRunVerified ? { localDryRunVerified: true } : {}),
+    };
+    if (identity && user)
+      validateLoadedReview(loaded, identity, user, localDryRunVerified);
+    return loaded;
   }
-  async submit(payload: GuideUpdatePayload, expectedIdentity: string) {
+  async submit(payload: SubmissionRequest, expectedIdentity: string) {
     if (!this.submissionEnabled)
       throw new Error(
         'Guide submission is not enabled for this build. Export your draft instead.',
@@ -135,18 +238,49 @@ export class GuideApi {
     if (this.submitting) throw new Error('A submission is already pending.');
     this.submitting = true;
     try {
-      validateUpdate(payload);
+      if (payload.expectedContributor !== expectedIdentity)
+        throw new Error(
+          'Captured contributor does not match the strict request.',
+        );
+      validateStrictUpdate(payload, this.user, this.development);
+      payload = Object.freeze({
+        ...payload,
+        expectedReview: parseReviewState(
+          payload.expectedReview,
+          this.development,
+        ),
+      }) as SubmissionRequest;
+      const localDryRun =
+        payload.expectedReview?.state === 'unverified'
+          ? await this.verifyLocalDryRun()
+          : false;
+      validateStrictUpdate(payload, this.user, localDryRun);
       await this.requireContributor(expectedIdentity, true);
+      if (!this.user?.csrfToken.trim())
+        throw new Error(
+          'Explicit in-memory CSRF is required. Refresh your original session deliberately.',
+        );
+      validateStrictUpdate(payload, this.user, localDryRun);
       let data: unknown;
+      let status = 0;
       try {
-        data = await this.json('/', 'POST', payload, true, [200, 201]);
+        data = await this.json(
+          '/v2/submissions',
+          'POST',
+          payload,
+          false,
+          [200, 201],
+          (value) => {
+            status = value;
+          },
+        );
       } catch (error) {
         if (error instanceof GuideApiError) throw error;
         throw new SubmissionUncertainError(
           'The submission outcome is uncertain. A PR may have changed. Inspect or reload your contribution in Guide Editor before retrying. Your draft is retained.',
         );
       }
-      const result = parseSubmissionResult(data, payload);
+      const result = parseSubmissionResult(data, payload, status);
       if ('dryRun' in result && contributorId(result.user) !== expectedIdentity)
         throw new SubmissionUncertainError(
           'The response identity changed. Inspect your contribution before retrying; your draft is retained.',
@@ -162,6 +296,7 @@ export class GuideApi {
     body?: unknown,
     retry = true,
     acceptedStatuses?: number[],
+    responseStatus?: (status: number) => void,
   ): Promise<T> {
     const identity = contributorId(this.user);
     // Browser fetch requires its Window receiver; invoking an injected property
@@ -210,6 +345,7 @@ export class GuideApi {
       throw new SubmissionUncertainError(
         'Unrecognised submission status. Inspect your contribution before retrying; your draft is retained.',
       );
+    responseStatus?.(response.status);
     return data as T;
   }
 }

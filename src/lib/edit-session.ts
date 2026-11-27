@@ -25,6 +25,11 @@ import {
 import type { LoadedGuideSource } from './guide-source-provider';
 import { validatePageSource } from './page-canvas';
 import { inlineTokenFromId, newLinkToken } from './rich-token';
+import {
+  parseReviewState,
+  reviewKey,
+  type ContributorIdentity,
+} from './review-state';
 
 export interface PendingChange {
   entryId: string;
@@ -104,6 +109,7 @@ export function readSourceMap(value: unknown): GuideSourceMap {
 }
 
 export class EditSession {
+  readonly contributor: ContributorIdentity | undefined;
   readonly map: GuideSourceMap;
   readonly loaded: Readonly<LoadedGuideSource>;
   #pending = new Map<string, InlineEdit>();
@@ -120,7 +126,18 @@ export class EditSession {
     allowEmptyRows = false,
   ) {
     this.map = map;
-    this.loaded = Object.freeze({ ...loaded });
+    this.contributor = loaded.contributor;
+    this.loaded = Object.freeze({
+      ...loaded,
+      ...(loaded.reviewState
+        ? {
+            reviewState: parseReviewState(
+              loaded.reviewState,
+              loaded.localDryRunVerified === true,
+            ),
+          }
+        : {}),
+    });
     this.lines = sourceLines(loaded.originalText, map, allowEmptyRows);
     for (const entry of map.entries) {
       this.#entries.set(entry.id, entry);
@@ -688,6 +705,9 @@ export class EditSession {
       currentSource.baseBranch !== this.loaded.baseBranch ||
       (currentSource.existingReviewBranch || '') !==
         (this.loaded.existingReviewBranch || '') ||
+      currentSource.contributor !== this.contributor ||
+      reviewKey(currentSource.reviewState) !==
+        reviewKey(this.loaded.reviewState) ||
       !(await verifySourceVersion(currentSource.originalText, this.map))
     )
       throw new Error(

@@ -25,6 +25,9 @@ jobs:
       GUIDES_DIR: ../pvme-guides
       SITE_URL: ${{ vars.SITE_URL || 'https://pvme.github.io' }}
       BASE_PATH: ${{ vars.BASE_PATH || '/pvme-website/' }}
+      PUBLIC_AUTHENTICATION: 'true'
+      PUBLIC_AUTHENTICATED_EDITING: 'true'
+      PUBLIC_GUIDE_SUBMISSION: 'true'
     steps:
       - name: Check out website
         uses: actions/checkout@v7

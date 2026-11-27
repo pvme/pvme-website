@@ -55,6 +55,17 @@ const status = (message: string, reveal = true) => {
 };
 function renderAccount() {
   const user = api.user;
+  const displayName =
+    user?.displayName || user?.globalName || user?.username || 'Log in';
+  account.querySelector('summary')!.title = user
+    ? `${displayName} (${user.provider})`
+    : 'Contributor account';
+  account
+    .querySelector('summary')!
+    .setAttribute(
+      'aria-label',
+      user ? `Contributor account: ${displayName}` : 'Contributor account',
+    );
   account.querySelector('[data-account-name]')!.textContent =
     user?.displayName || user?.globalName || user?.username || 'Log in';
   account.querySelector('[data-account-status]')!.textContent = user
@@ -252,6 +263,16 @@ async function restore() {
   }
 }
 if (flags.authentication) {
+  document.addEventListener('click', (event) => {
+    if (event.target instanceof Node && !account.contains(event.target))
+      account.open = false;
+  });
+  account.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      account.open = false;
+      account.querySelector('summary')!.focus();
+    }
+  });
   for (const button of account.querySelectorAll<HTMLButtonElement>(
     '[data-login]',
   ))

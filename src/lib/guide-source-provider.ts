@@ -1,3 +1,4 @@
+import type { ContributorIdentity, LoadedReviewState } from './review-state';
 /** Mirrors a resolved /guides/load response; the "auto" review-choice response is not source. */
 export interface LinkPage {
   title: string;
@@ -17,6 +18,11 @@ export interface LoadedGuideSource {
   prUrl?: string;
   existingReviewBranch?: string;
   existingReviewUrl?: string;
+  /** Optional only for static development snapshots and recovery of older drafts. */
+  reviewState?: LoadedReviewState;
+  contributor?: ContributorIdentity;
+  dryRun?: true;
+  localDryRunVerified?: true;
   /** Optional local preview metadata; never included in submission payloads. */
   previewLinks?: Record<string, { href: string; title?: string }>;
   linkPages?: LinkPage[];

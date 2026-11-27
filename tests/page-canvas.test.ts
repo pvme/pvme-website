@@ -1466,3 +1466,116 @@ test('Delete and Backspace remove existing blank message rows without changing n
   assert.equal(f.canvas.finish(), true);
   assert.equal(f.s.content(), 'First\r\nLast');
 });
+
+test('stationary edge dragging tracks drop zones moved by automatic scrolling and stops on cancel', async () => {
+  const f = await fixture('First\n.\nMiddle\n.\nLast');
+  let frame: FrameRequestCallback | undefined;
+  let distance = 0;
+  Object.defineProperty(f.window, 'innerHeight', {
+    configurable: true,
+    value: 800,
+  });
+  Object.defineProperty(f.window, 'requestAnimationFrame', {
+    configurable: true,
+    value: (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    },
+  });
+  Object.defineProperty(f.window, 'scrollBy', {
+    configurable: true,
+    value: (_x: number, y: number) => {
+      distance += y;
+    },
+  });
+  const zones = [
+    ...f.document.querySelectorAll<HTMLElement>('[data-canvas-drop]'),
+  ];
+  zones.forEach((zone, index) => {
+    zone.getBoundingClientRect = () =>
+      ({ top: 730 + index * 40 - distance }) as DOMRect;
+  });
+  assert.ok(zones.length >= 3);
+  const grip = f.document.querySelector('button[draggable]')!;
+  const pointer = (type: string, y: number) => {
+    const event = new f.window.Event(type, { bubbles: true, cancelable: true });
+    Object.assign(event, {
+      button: 0,
+      clientX: 300,
+      clientY: y,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+    grip.dispatchEvent(event);
+  };
+  pointer('pointerdown', 400);
+  pointer('pointermove', 760);
+  assert.ok(frame);
+  const initial = f.document.querySelector('[data-drop-active]');
+  for (let i = 0; i < 6; i++) {
+    const tick = frame!;
+    frame = undefined;
+    tick(i * 16);
+  }
+  assert.ok(distance > 0);
+  assert.notEqual(
+    f.document.querySelector<HTMLElement>('[data-drop-active]')?.dataset
+      .canvasDrop,
+    (initial as HTMLElement)?.dataset.canvasDrop,
+  );
+  // Returning to the initial point must update dragY, even after crossing the
+  // movement threshold; otherwise the stationary edge loop keeps scrolling.
+  pointer('pointermove', 400);
+  const inMiddle = distance;
+  frame?.(100);
+  assert.equal(distance, inMiddle);
+  pointer('pointercancel', 760);
+  const before = distance;
+  frame?.(112);
+  assert.equal(distance, before);
+  assert.equal(f.s.content(), 'First\n.\nMiddle\n.\nLast');
+});
+
+test('keyboard section moves follow the complete moved heading and Escape returns to its menu', async () => {
+  const f = await fixture(
+    '# First\n\nOne\n\n## Child\n\nTwo\n\n# Last\n\nThree',
+  );
+  let focused: HTMLElement | undefined;
+  const prototype = f.window.HTMLElement.prototype;
+  const originalFocus = prototype.focus;
+  prototype.focus = function () {
+    focused = this;
+  };
+  try {
+    f.click('[aria-label="Move block down"]');
+    assert.ok(f.s.content().startsWith('# Last'));
+    const selected = f.document.querySelector<HTMLElement>('[data-selected]')!;
+    assert.match(
+      selected.querySelector('[data-canvas-preview]')!.textContent!,
+      /First/,
+    );
+    assert.equal(focused, selected);
+    const menu =
+      selected.querySelector<HTMLDetailsElement>('.canvas-block-menu')!;
+    Object.defineProperty(menu, 'open', {
+      get: () => menu.hasAttribute('open'),
+      set: (value: boolean) => menu.toggleAttribute('open', value),
+    });
+    menu.open = true;
+    const escape = new f.window.Event('keydown', {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.assign(escape, { key: 'Escape' });
+    menu.querySelector('button')!.dispatchEvent(escape);
+    assert.equal(menu.open, false);
+    assert.equal(focused, menu.querySelector('summary'));
+    f.click('[data-canvas-undo]');
+    assert.equal(
+      f.s.content(),
+      '# First\n\nOne\n\n## Child\n\nTwo\n\n# Last\n\nThree',
+    );
+  } finally {
+    prototype.focus = originalFocus;
+  }
+});

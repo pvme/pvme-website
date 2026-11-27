@@ -5,7 +5,9 @@ import type { GuideSourceProvider } from './guide-source-provider';
 import {
   SubmissionUncertainError,
   type SubmissionResult,
+  type SubmissionRequest,
 } from './submission-contract';
+import { reviewKey, validateLoadedReview } from './review-state';
 
 export function reviewIdentity(session: EditSession) {
   const s = session.loaded;
@@ -17,6 +19,8 @@ export function reviewIdentity(session: EditSession) {
     s.existingReviewBranch || '',
     s.existingReviewUrl || '',
     s.prUrl || '',
+    session.contributor || '',
+    reviewKey(s.reviewState),
   ]);
 }
 export interface ReplacementConsent {
@@ -55,8 +59,12 @@ export class GuideSubmission {
     consent?: ReplacementConsent,
   ): Promise<SubmissionReceipt> {
     if (this.pending) throw new Error('A submission is already pending.');
-    const identity = store.identity;
-    if (identity !== contributorId(this.api.user))
+    const identity = session.contributor;
+    if (
+      !identity ||
+      identity !== store.identity ||
+      identity !== contributorId(this.api.user)
+    )
       throw new Error(
         'Your account changed. Reopen the editor; your draft is retained.',
       );
@@ -67,15 +75,21 @@ export class GuideSubmission {
       );
     const content = session.content(),
       changes = JSON.stringify(session.changes);
-    const storedRevision = store.snapshot(session.path);
+    const storedRevision = store.snapshotFor(session);
     const review = reviewIdentity(session);
     this.pending = true;
     try {
+      const expectedReview = validateLoadedReview(
+        session.loaded,
+        identity,
+        this.api.user || undefined,
+        this.api.development && session.loaded.localDryRunVerified === true,
+      );
       const current = await this.provider.load(
         session.path,
         session.loaded.source,
       );
-      const payload = await session.prepareUpdate(description, current);
+      const prepared = await session.prepareUpdate(description, current);
       if (
         session.content() !== content ||
         JSON.stringify(session.changes) !== changes
@@ -92,7 +106,7 @@ export class GuideSubmission {
         throw new Error(
           'Review metadata changed. Reload the source and confirm replacement again.',
         );
-      if (payload.source === 'master' && payload.existingReviewBranch) {
+      if (prepared.source === 'master' && expectedReview.state === 'present') {
         if (
           !consent ||
           consent.identity !== identity ||
@@ -101,8 +115,26 @@ export class GuideSubmission {
           throw new Error(
             'Confirm replacement of the linked submitted update before submitting this live-guide edit.',
           );
-        payload.replaceExistingReview = true;
+        prepared.replaceExistingReview = true;
       }
+      // Never take a newer assertion from the recheck; it is only a comparison.
+      const payload: SubmissionRequest =
+        expectedReview.state === 'unverified'
+          ? {
+              ...prepared,
+              contractVersion: 2,
+              expectedContributor: identity,
+              expectedReview,
+              source: 'master',
+              branch: 'master',
+              replaceExistingReview: false,
+            }
+          : {
+              ...prepared,
+              contractVersion: 2,
+              expectedContributor: identity,
+              expectedReview,
+            };
       const result = await this.api.submit(payload, identity);
       if (!('dryRun' in result)) this.completed.add(key);
       return {
@@ -133,7 +165,29 @@ export function submissionFailure(error: unknown): string {
       (error instanceof Error ? error.message : 'Submission failed.') + retained
     );
   let action = '';
-  if (error.status === 401)
+  if (error.code === 'CONTRIBUTOR_MISMATCH')
+    action =
+      'Restore the captured contributor account, reload the selected source and review the draft again. This result never transfers to another account.';
+  else if (error.code === 'CSRF_INVALID')
+    action =
+      'Refresh the session deliberately and confirm the original contributor before a new submission. No automatic retry was made.';
+  else if (
+    [
+      'INVALID_CONTRACT',
+      'INVALID_CONTRIBUTOR',
+      'INVALID_REVIEW_STATE',
+      'STRICT_ROUTE_REQUIRED',
+    ].includes(error.code || '')
+  )
+    action =
+      'The strict v2 contract is unavailable or invalid. Keep/export the draft and correct the integration; never fall back to a legacy endpoint.';
+  else if (error.code === 'REPLACEMENT_CONSENT_REQUIRED')
+    action =
+      'Reload the selected source and give fresh explicit consent for the displayed immutable review version.';
+  else if (error.code === 'REVIEW_STATE_CONFLICT')
+    action =
+      'The review version changed. Publication may already have occurred. Inspect the contribution before retrying, then reload and give fresh consent. No version was refreshed automatically.';
+  else if (error.status === 401)
     action = 'Sign in again with the same contributor account.';
   else if (error.status === 403)
     action =
@@ -146,7 +200,7 @@ export function submissionFailure(error: unknown): string {
       'Reload the selected source or inspect your submitted update in Guide Editor before retrying. Do not overwrite or rebase automatically.';
   else if (error.status === 404)
     action =
-      'The guide or review is unavailable. Reload the live source or use Guide Editor.';
+      'The guide, review or strict v2 route is unavailable. Inspect/reload in Guide Editor. Never fall back to legacy submission.';
   else if (error.status === 413)
     action =
       'Each original and edited source must fit within 2 MiB of UTF-8 text. Export the draft.';

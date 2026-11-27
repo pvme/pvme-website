@@ -1,4 +1,9 @@
 import type { EditSession, PendingChange } from './edit-session';
+import {
+  parseReviewState,
+  reviewKey,
+  type LoadedReviewState,
+} from './review-state';
 
 export interface StoredDraft {
   schemaVersion: 1;
@@ -10,6 +15,7 @@ export interface StoredDraft {
   branch?: string;
   existingReviewBranch?: string;
   revision?: string;
+  reviewState?: LoadedReviewState;
 }
 export interface DraftStore {
   getItem(key: string): string | null;
@@ -57,6 +63,9 @@ export class DraftStorage {
           source: session.loaded.source,
           branch: session.loaded.branch,
           existingReviewBranch: session.loaded.existingReviewBranch || '',
+          ...(session.loaded.reviewState
+            ? { reviewState: session.loaded.reviewState }
+            : {}),
           ...(/^(github|discord):/.test(this.identity)
             ? { revision: crypto.randomUUID() }
             : {}),
@@ -97,6 +106,37 @@ export class DraftStorage {
       }
       return raw;
     } catch {
+      return undefined;
+    }
+  }
+  /** Storage may already contain another tab's edits before submission starts. */
+  snapshotFor(session: EditSession): string | undefined {
+    const raw = this.snapshot(session.path);
+    if (typeof raw !== 'string') return undefined;
+    try {
+      const draft = JSON.parse(raw) as StoredDraft;
+      const reviewState =
+        draft.reviewState === undefined
+          ? undefined
+          : parseReviewState(
+              draft.reviewState,
+              session.loaded.localDryRunVerified === true,
+            );
+      if (
+        draft.schemaVersion !== 1 ||
+        draft.path !== session.path ||
+        draft.sourceHash !== session.sourceHash ||
+        draft.source !== session.loaded.source ||
+        draft.branch !== session.loaded.branch ||
+        draft.existingReviewBranch !==
+          (session.loaded.existingReviewBranch || '') ||
+        reviewKey(reviewState) !== reviewKey(session.loaded.reviewState) ||
+        JSON.stringify(draft.edits) !== JSON.stringify(session.changes)
+      )
+        return undefined;
+      return raw;
+    } catch {
+      // Unknown/legacy metadata remains recoverable, never a cleanup candidate.
       return undefined;
     }
   }
@@ -161,6 +201,18 @@ export class DraftStorage {
       )
         throw new Error('This draft belongs to a different source or review.');
       // Ranges and kinds come exclusively from the freshly verified session map.
+      if (
+        draft.reviewState &&
+        reviewKey(
+          parseReviewState(
+            draft.reviewState,
+            session.loaded.localDryRunVerified === true,
+          ),
+        ) !== reviewKey(session.loaded.reviewState)
+      )
+        throw new Error(
+          'This draft belongs to a different immutable review version. Export it and reload; no consent was refreshed.',
+        );
       session.setChanges(draft.edits);
       return { status: 'restored' };
     } catch (error) {

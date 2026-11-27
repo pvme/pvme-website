@@ -189,9 +189,22 @@ test('network errors are not retried; 401 and failed session checks suspend iden
 });
 
 test('existing review requires a choice, and preparation refetches the chosen source', async () => {
-  const source = testSource('Original\r\n');
+  const source = { ...testSource('Original\r\n'), prUrl: '' };
   const choice = {
     hasExistingReview: true,
+    name: 'Test',
+    repo: 'pvme/pvme-guides',
+    baseBranch: 'master',
+    liveBranch: 'master',
+    reviewState: {
+      state: 'present',
+      repository: 'contributor/pvme-guides',
+      branch: 'guide-editor/github-42/test',
+      headSha: 'a'.repeat(40),
+      prId: 101,
+      prNumber: 1,
+      prUrl: 'https://github.com/pvme/pvme-guides/pull/1',
+    },
     path: 'test.txt',
     reviewBranch: 'guide-editor/github-42/test',
     prUrl: 'https://github.com/pvme/pvme-guides/pull/1',
@@ -199,6 +212,13 @@ test('existing review requires a choice, and preparation refetches the chosen so
   for (const selection of ['master', 'review'] as const) {
     const selected = {
       ...source,
+      reviewState: choice.reviewState,
+      ...(selection === 'review'
+        ? { prUrl: choice.prUrl }
+        : {
+            existingReviewBranch: choice.reviewBranch,
+            existingReviewUrl: choice.prUrl,
+          }),
       source:
         selection === 'review' ? ('user-pr' as const) : ('master' as const),
       branch: selection === 'review' ? choice.reviewBranch : 'master',
@@ -360,4 +380,61 @@ test('browser fetch receives the global receiver rather than the API instance', 
   } as typeof fetch);
   await api.restore();
   assert.equal(contributorId(api.user), 'github:42');
+});
+
+test('authenticated loads validate complete review versions and permit unverified only after local dry-run health', async () => {
+  const source = {
+    ...testSource('Exact\r\n'),
+    prUrl: '',
+    dryRun: true,
+    reviewState: { state: 'unverified' },
+  };
+  const health = {
+    ok: true,
+    mode: 'dry-run',
+    repo: 'pvme/pvme-guides',
+    baseBranch: 'master',
+  };
+  const { api, calls } = mockApi([
+    json({ user: github() }),
+    json(source),
+    json(health),
+  ]);
+  await api.restore();
+  const loaded = await api.load('test.txt', 'master');
+  assert.ok(!('hasExistingReview' in loaded));
+  assert.equal(loaded.reviewState?.state, 'unverified');
+  assert.equal(loaded.localDryRunVerified, true);
+  assert.equal(calls[2].url, '/api/guide-pr/');
+  for (const response of [
+    { ...source, reviewState: undefined },
+    { ...source, dryRun: undefined },
+    {
+      ...source,
+      reviewState: { state: 'none' },
+      existingReviewBranch: 'unexpected',
+    },
+  ]) {
+    const f = mockApi([json({ user: github() }), json(response)]);
+    await f.api.restore();
+    await assert.rejects(f.api.load('test.txt', 'master'));
+  }
+  const badHealth = mockApi([
+    json({ user: github() }),
+    json(source),
+    json({ ...health, mode: 'live' }),
+  ]);
+  await badHealth.api.restore();
+  await assert.rejects(
+    badHealth.api.load('test.txt', 'master'),
+    /could not be verified/,
+  );
+  let reads = 0;
+  const production = new GuideApi(false, async () => {
+    reads++;
+    return reads === 1 ? json({ user: github() }) : json(source);
+  });
+  await production.restore();
+  await assert.rejects(production.load('test.txt', 'master'), /outside local/);
+  assert.equal(reads, 2);
 });

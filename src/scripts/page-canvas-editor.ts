@@ -245,6 +245,16 @@ export class PageCanvasEditor {
         (event.target as Element).closest('.inline-line-input')
       )
         return;
+      const blockMenu = (event.target as Element).closest<HTMLDetailsElement>(
+        '.canvas-block-menu[open]',
+      );
+      if (blockMenu) {
+        blockMenu.open = false;
+        blockMenu.querySelector('summary')?.focus();
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const menu = (event.target as Element).closest<HTMLElement>(
         '[data-canvas-insert-menu]',
       );
@@ -272,11 +282,29 @@ export class PageCanvasEditor {
         this.scrollFrame = undefined;
         return;
       }
-      if (this.dragY < 110 || this.dragY > view.innerHeight - 90)
+      if (this.dragY < 110 || this.dragY > view.innerHeight - 90) {
         view.scrollBy(0, this.dragY < 110 ? -12 : 12);
+        // Scrolling moves zones even while the pointer remains stationary.
+        this.dropTarget?.removeAttribute('data-drop-active');
+        this.dropTarget = this.nearestDrop(this.dragY);
+        this.dropTarget?.setAttribute('data-drop-active', '');
+      }
       this.scrollFrame = view.requestAnimationFrame(scroll);
     };
     this.scrollFrame = this.doc.defaultView?.requestAnimationFrame?.(scroll);
+  }
+  private nearestDrop(y: number) {
+    return [
+      ...this.board.querySelectorAll<HTMLElement>('[data-canvas-drop]'),
+    ].reduce<HTMLElement | undefined>(
+      (nearest, zone) =>
+        !nearest ||
+        Math.abs(zone.getBoundingClientRect().top + 9 - y) <
+          Math.abs(nearest.getBoundingClientRect().top + 9 - y)
+          ? zone
+          : nearest,
+      undefined,
+    );
   }
   private button(label: string, action: () => void, key?: string) {
     const button = this.doc.createElement('button');
@@ -510,20 +538,7 @@ export class PageCanvasEditor {
       // Pointer capture also supports touch and native automation drivers whose
       // HTML drag sequence ends before Chromium dispatches dragover/drop.
       let pointer: { x: number; y: number; moved: boolean } | undefined;
-      const pointTarget = (y: number) => {
-        const zones = [
-          ...this.board.querySelectorAll<HTMLElement>('[data-canvas-drop]'),
-        ];
-        return zones.reduce<HTMLElement | undefined>(
-          (nearest, zone) =>
-            !nearest ||
-            Math.abs(zone.getBoundingClientRect().top + 9 - y) <
-              Math.abs(nearest.getBoundingClientRect().top + 9 - y)
-              ? zone
-              : nearest,
-          undefined,
-        );
-      };
+      const pointTarget = (y: number) => this.nearestDrop(y);
       grip.addEventListener('pointerdown', (event) => {
         if (
           event.button !== 0 ||
@@ -540,7 +555,9 @@ export class PageCanvasEditor {
       grip.addEventListener('pointermove', (event) => {
         if (
           !pointer ||
-          Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) < 6
+          (!pointer.moved &&
+            Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) <
+              6)
         )
           return;
         pointer.moved = true;
@@ -562,6 +579,7 @@ export class PageCanvasEditor {
         this.dropTarget = undefined;
       };
       grip.addEventListener('pointercancel', cancelPointer);
+      grip.addEventListener('lostpointercapture', cancelPointer);
       grip.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           cancelPointer();
@@ -583,14 +601,10 @@ export class PageCanvasEditor {
           const current = this.currentBlock(index);
           if (!current)
             throw new Error('Select this block again before moving it');
-          this.apply(
-            moveCanvasBlock(
-              this.source,
-              current,
-              this.rebaseOffset(Number(target.dataset.canvasDrop)),
-            ),
+          this.moveAndFocus(
+            current,
+            this.rebaseOffset(Number(target.dataset.canvasDrop)),
           );
-          this.render();
           this.announce(
             current.kind === 'heading' ? 'Section moved.' : 'Block moved.',
           );
@@ -1053,10 +1067,7 @@ export class PageCanvasEditor {
           );
           if (!block)
             throw new Error('The dragged block changed. Drag it again.');
-          this.apply(
-            moveCanvasBlock(this.source, block, this.rebaseOffset(offset)),
-          );
-          this.render();
+          this.moveAndFocus(block, this.rebaseOffset(offset));
           this.announce('Block moved.');
         } else throw new Error('Unsupported canvas drop');
       } catch (error) {
@@ -1221,21 +1232,42 @@ export class PageCanvasEditor {
           : blocks[index + direction];
     if (!block || !other) return;
     try {
-      this.apply(
-        moveCanvasBlock(
-          this.source,
-          block,
-          direction < 0
-            ? canvasSection(this.source, other).start
-            : canvasSection(this.source, other).end,
-        ),
+      this.moveAndFocus(
+        block,
+        direction < 0
+          ? canvasSection(this.source, other).start
+          : canvasSection(this.source, other).end,
       );
-      this.selected = index + direction;
-      this.render();
       this.announce('Block moved.');
     } catch (error) {
       this.error(error);
     }
+  }
+  private moveAndFocus(block: CanvasBlock, offset: number) {
+    const section = canvasSection(this.source, block);
+    const destination =
+      offset > section.end ? offset - (section.end - section.start) : offset;
+    this.apply(moveCanvasBlock(this.source, block, offset));
+    // Source offsets/IDs change on a move. Follow the moved block, including
+    // heading descendants and repeated text, rather than focusing a detached grip.
+    const candidates = canvasBlocks(this.source)
+      .map((candidate, index) => ({ candidate, index }))
+      .filter(
+        ({ candidate }) =>
+          candidate.kind === block.kind && candidate.source === block.source,
+      );
+    const moved = candidates.reduce<(typeof candidates)[number] | undefined>(
+      (nearest, entry) =>
+        !nearest ||
+        Math.abs(entry.candidate.start - destination) <
+          Math.abs(nearest.candidate.start - destination)
+          ? entry
+          : nearest,
+      undefined,
+    );
+    if (moved) this.selected = moved.index;
+    this.render();
+    this.board.querySelector<HTMLElement>('[data-selected]')?.focus();
   }
   private duplicate(index: number) {
     if (!this.canLeaveProperties()) return;

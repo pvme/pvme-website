@@ -6,9 +6,10 @@ import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, createCipheriv } from 'node:crypto';
 import { GuideApi } from '../src/lib/guide-api';
+import { EditSession } from '../src/lib/edit-session';
 import { GuideSubmission } from '../src/lib/guide-submission';
 import { DraftStorage } from '../src/lib/draft-storage';
-import { createTestGuide, testSource, MemoryStore } from './helpers';
+import { createTestGuide, MemoryStore } from './helpers';
 
 const backend = resolve('../guide-editor/cloud-functions/guide-pr');
 const framework = resolve(
@@ -94,6 +95,8 @@ test(
       const api = new GuideApi(
         true,
         async (url, init) => {
+          if (init?.method === 'POST')
+            assert.equal(String(url), '/api/guide-pr/v2/submissions');
           const headers = new Headers(init?.headers);
           headers.set('Origin', 'https://pvme.io');
           headers.set('Cookie', `pvme_guide_session=${cookie}`);
@@ -108,13 +111,20 @@ test(
       assert.equal(identity?.provider, 'github');
       assert.equal((identity as any).githubToken, undefined);
       const original = 'Original Unicode é\r\nSecond\n';
-      const { session: edit } = await createTestGuide(original);
+      const { rendered } = await createTestGuide(original);
+      const loaded = await api.load('test.txt', 'master');
+      assert.ok(!('hasExistingReview' in loaded));
+      assert.equal(loaded.reviewState?.state, 'unverified');
+      assert.equal(loaded.localDryRunVerified, true);
+      const edit = await EditSession.create(rendered.sourceMap, loaded);
       edit.setDocument('Edited Unicode é\r\nSecond\n');
       const drafts = new DraftStorage(new MemoryStore(), 'github:123');
       drafts.save(edit);
       const workflow = new GuideSubmission(api, {
         async load() {
-          return testSource(original);
+          const fresh = await api.load('test.txt', 'master');
+          if ('hasExistingReview' in fresh) throw Error('Unexpected review');
+          return fresh;
         },
       });
       const receipt = await workflow.submit(
@@ -138,6 +148,60 @@ test(
       }
       assert.equal(workflow.complete(receipt), false);
       assert.ok(drafts.hasDraft(edit.path));
+      const payload = {
+        ...(await edit.prepareUpdate(
+          { title: 'Strict check', notes: 'Validation only' },
+          edit.loaded,
+        )),
+        contractVersion: 2,
+        expectedContributor: 'github:123',
+        expectedReview: { state: 'unverified' },
+      };
+      for (const [patch, csrf, route, status, code] of [
+        [
+          { expectedContributor: 'github:124' },
+          'website-csrf',
+          '/v2/submissions',
+          409,
+          'CONTRIBUTOR_MISMATCH',
+        ],
+        [{}, '', '/v2/submissions', 403, 'CSRF_INVALID'],
+        [
+          { contractVersion: 1 },
+          'website-csrf',
+          '/v2/submissions',
+          400,
+          'INVALID_CONTRACT',
+        ],
+        [
+          { expectedReview: { state: 'none', headSha: 'invalid' } },
+          'website-csrf',
+          '/v2/submissions',
+          400,
+          'INVALID_REVIEW_STATE',
+        ],
+        [
+          { replaceExistingReview: true },
+          'website-csrf',
+          '/v2/submissions',
+          400,
+          'INVALID_REVIEW_STATE',
+        ],
+        [{}, 'website-csrf', '/', 400, 'STRICT_ROUTE_REQUIRED'],
+      ] as const) {
+        const response = await fetch(`http://localhost:${port}${route}`, {
+          method: 'POST',
+          headers: {
+            Origin: 'https://pvme.io',
+            'Content-Type': 'application/json',
+            Cookie: `pvme_guide_session=${cookie}`,
+            'X-PVME-CSRF-Token': csrf,
+          },
+          body: JSON.stringify({ ...payload, ...patch }),
+        });
+        assert.equal(response.status, status);
+        assert.equal((await response.json()).code, code);
+      }
     } finally {
       child.kill();
       if (child.exitCode === null)

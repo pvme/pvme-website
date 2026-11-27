@@ -1194,6 +1194,9 @@ async function submissionFixture(
           dryRun
             ? {
                 dryRun: true,
+                contractVersion: 2,
+                contributor: 'github:42',
+                reviewStateVerified: false,
                 message: 'Validated',
                 title: payload.title,
                 path: payload.path,
@@ -1207,6 +1210,8 @@ async function submissionFixture(
                 ),
               }
             : {
+                contractVersion: 2,
+                contributor: 'github:42',
                 prUrl: 'https://github.com/pvme/pvme-guides/pull/123',
                 branch,
                 path: payload.path,
@@ -1224,6 +1229,18 @@ async function submissionFixture(
     async load(path: string) {
       return {
         ...loaded(text, path),
+        contributor: 'github:42' as const,
+        reviewState: existing
+          ? {
+              state: 'present' as const,
+              repository: 'mock/pvme-guides',
+              branch,
+              headSha: 'a'.repeat(40),
+              prId: 1001,
+              prNumber: 123,
+              prUrl: 'https://github.com/pvme/pvme-guides/pull/123',
+            }
+          : { state: 'none' as const },
         ...(existing
           ? {
               existingReviewBranch: branch,
@@ -1284,7 +1301,17 @@ test('authenticated review shows real pending/success, keeps recovery export, an
     'https://github.com/pvme/pvme-guides/pull/123',
   );
   assert.ok(f.options.drafts.hasDraft(f.map.path));
+  let focused: HTMLElement | undefined;
+  for (const element of f.document.querySelectorAll<HTMLElement>('button'))
+    element.focus = () => {
+      focused = element;
+    };
   f.click('[data-submit-reading]');
+  // Browsers queue dialog close; its return target must survive completion.
+  f.document
+    .querySelector('dialog[data-review-dialog]')
+    ?.dispatchEvent(new f.window.Event('close'));
+  assert.equal(focused, f.document.querySelector('[data-inline-edit-path]'));
   assert.equal(f.controller.session, undefined);
   assert.equal(f.options.drafts.hasDraft(f.map.path), false);
   assert.match(f.document.querySelector('article')!.textContent!, /Original/);

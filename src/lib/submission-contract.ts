@@ -1,5 +1,13 @@
 import type { GuideUpdatePayload } from './edit-session';
 import type { PublicUser } from './guide-api';
+import {
+  contributorBranch,
+  parseReviewState,
+  validContributor,
+  validateReviewOwner,
+  type ContributorIdentity,
+  type ExpectedReview,
+} from './review-state';
 
 export const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
@@ -11,7 +19,7 @@ export function parsePublicUser(value: unknown): PublicUser | null {
     !['username', 'globalName', 'avatar', 'displayName', 'csrfToken'].every(
       (key) => string(value[key]),
     ) ||
-    !value.csrfToken ||
+    !(value.csrfToken as string).trim() ||
     typeof value.canReviewPrs !== 'boolean'
   )
     throw new Error('Invalid public session response.');
@@ -26,7 +34,7 @@ export function parsePublicUser(value: unknown): PublicUser | null {
   if (
     value.provider === 'github' &&
     string(value.githubId) &&
-    /^\d+$/.test(value.githubId) &&
+    /^[1-9]\d*$/.test(value.githubId) &&
     string(value.githubLogin) &&
     value.githubLogin
   )
@@ -39,7 +47,7 @@ export function parsePublicUser(value: unknown): PublicUser | null {
   if (
     value.provider === 'discord' &&
     string(value.discordId) &&
-    /^\d+$/.test(value.discordId) &&
+    /^[1-9]\d*$/.test(value.discordId) &&
     typeof value.pvmeMember === 'boolean'
   )
     return {
@@ -54,12 +62,17 @@ export const validPrUrl = (value: unknown): value is string =>
   string(value) &&
   /^https:\/\/github\.com\/pvme\/pvme-guides\/pull\/[1-9]\d*$/.test(value);
 export interface SubmittedUpdate {
+  contractVersion: 2;
+  contributor: ContributorIdentity;
   prUrl: string;
   branch: string;
   path: string;
   reusedReview: boolean;
 }
 export interface DryRunUpdate {
+  contractVersion: 2;
+  contributor: ContributorIdentity;
+  reviewStateVerified: false;
   dryRun: true;
   message: string;
   path: string;
@@ -73,8 +86,48 @@ export interface DryRunUpdate {
 }
 export type SubmissionResult = SubmittedUpdate | DryRunUpdate;
 export class SubmissionUncertainError extends Error {}
+export type StrictGuideUpdate = Omit<
+  GuideUpdatePayload,
+  'title' | 'existingReviewBranch'
+> & {
+  title?: string;
+  existingReviewBranch?: string;
+  contractVersion: 2;
+  expectedContributor: ContributorIdentity;
+  expectedReview: ExpectedReview;
+};
+/** Explicit local-only exception; it is not a live ExpectedReview assertion. */
+export type LocalDryRunGuideUpdate = Omit<
+  StrictGuideUpdate,
+  'expectedReview' | 'source' | 'branch' | 'replaceExistingReview'
+> & {
+  expectedReview: { state: 'unverified' };
+  source: 'master';
+  branch: 'master';
+  replaceExistingReview: false;
+};
+export type SubmissionRequest = StrictGuideUpdate | LocalDryRunGuideUpdate;
 export function validateUpdate(payload: GuideUpdatePayload) {
   if (
+    !payload ||
+    typeof payload !== 'object' ||
+    ![
+      'type',
+      'repo',
+      'baseBranch',
+      'path',
+      'originalContent',
+      'content',
+      'title',
+      'notes',
+      'source',
+      'branch',
+      'existingReviewBranch',
+    ].every(
+      (key) =>
+        typeof (payload as unknown as Record<string, unknown>)[key] ===
+        'string',
+    ) ||
     payload.type !== 'update' ||
     payload.repo !== 'pvme/pvme-guides' ||
     payload.baseBranch !== 'master' ||
@@ -110,9 +163,89 @@ export function validateUpdate(payload: GuideUpdatePayload) {
       'Guide source exceeds the 2 MiB UTF-8 limit. Export your draft for recovery.',
     );
 }
+export function validateStrictUpdate(
+  payload: SubmissionRequest,
+  user?: PublicUser | null,
+  allowUnverified = false,
+) {
+  const keys = [
+    'contractVersion',
+    'expectedContributor',
+    'expectedReview',
+    'type',
+    'repo',
+    'baseBranch',
+    'path',
+    'originalContent',
+    'content',
+    'title',
+    'notes',
+    'source',
+    'branch',
+    'existingReviewBranch',
+    'replaceExistingReview',
+    'sourcePreservation',
+  ];
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload) ||
+    Object.keys(payload).some((key) => !keys.includes(key)) ||
+    (payload.title !== undefined && typeof payload.title !== 'string') ||
+    (payload.existingReviewBranch !== undefined &&
+      typeof payload.existingReviewBranch !== 'string')
+  )
+    throw new Error('Invalid strict request fields.');
+  validateUpdate({
+    ...payload,
+    title: payload.title?.trim() || 'Update',
+    existingReviewBranch: payload.existingReviewBranch || '',
+  });
+  if (
+    payload.contractVersion !== 2 ||
+    !validContributor(payload.expectedContributor)
+  )
+    throw new Error(
+      'Strict v2 submission requires contractVersion 2 and the captured contributor.',
+    );
+  const review = parseReviewState(payload.expectedReview, allowUnverified);
+  validateReviewOwner(review, payload.expectedContributor, user || undefined);
+  if (
+    payload.source === 'user-pr' &&
+    (review.state !== 'present' ||
+      payload.branch !== review.branch ||
+      payload.replaceExistingReview)
+  )
+    throw new Error(
+      'Review-source submission requires its captured version and replacement false.',
+    );
+  if (
+    payload.existingReviewBranch &&
+    (review.state !== 'present' ||
+      payload.existingReviewBranch !== review.branch)
+  )
+    throw new Error(
+      'Legacy branch metadata conflicts with the strict review assertion.',
+    );
+  if (
+    payload.source === 'master' &&
+    (review.state === 'present') !== payload.replaceExistingReview
+  )
+    throw new Error(
+      'Master replacement requires explicit consent for the captured review version.',
+    );
+  if (
+    review.state === 'unverified' &&
+    (!allowUnverified ||
+      payload.source !== 'master' ||
+      payload.replaceExistingReview)
+  )
+    throw new Error('Unverified review state is local dry-run only.');
+}
 export function parseSubmissionResult(
   value: unknown,
-  payload: GuideUpdatePayload,
+  payload: SubmissionRequest,
+  status: number,
 ): SubmissionResult {
   const invalid = () =>
     new SubmissionUncertainError(
@@ -120,6 +253,8 @@ export function parseSubmissionResult(
     );
   if (
     !record(value) ||
+    value.contractVersion !== 2 ||
+    value.contributor !== payload.expectedContributor ||
     value.path !== payload.path ||
     !string(value.branch) ||
     !value.branch
@@ -134,12 +269,19 @@ export function parseSubmissionResult(
     }
     if (
       !user ||
+      status !== 200 ||
+      value.reviewStateVerified !== false ||
+      (user.provider === 'github'
+        ? `github:${user.githubId}`
+        : `discord:${user.discordId}`) !== payload.expectedContributor ||
       !string(value.message) ||
       !string(value.title) ||
+      value.title !== (payload.title?.trim() || `Update ${payload.path}`) ||
       value.source !== payload.source ||
       value.branch !== payload.branch ||
-      !string(value.reviewBranch) ||
-      !value.reviewBranch ||
+      !contributorBranch(value.reviewBranch, payload.expectedContributor) ||
+      (payload.expectedReview.state === 'present' &&
+        value.reviewBranch !== payload.expectedReview.branch) ||
       value.contentBytes !==
         new TextEncoder().encode(payload.content).byteLength ||
       value.originalContentBytes !==
@@ -147,6 +289,9 @@ export function parseSubmissionResult(
     )
       throw invalid();
     return {
+      contractVersion: 2,
+      contributor: payload.expectedContributor,
+      reviewStateVerified: false,
       dryRun: true,
       message: value.message,
       title: value.title,
@@ -160,9 +305,16 @@ export function parseSubmissionResult(
     };
   }
   if (
+    payload.expectedReview.state === 'unverified' ||
+    !contributorBranch(value.branch, payload.expectedContributor) ||
     value.dryRun !== undefined ||
     !validPrUrl(value.prUrl) ||
     typeof value.reusedReview !== 'boolean' ||
+    status !== (value.reusedReview ? 200 : 201) ||
+    value.reusedReview !== (payload.expectedReview.state === 'present') ||
+    (payload.expectedReview.state === 'present' &&
+      (value.branch !== payload.expectedReview.branch ||
+        value.prUrl !== payload.expectedReview.prUrl)) ||
     (payload.source === 'user-pr' &&
       (value.branch !== payload.branch || !value.reusedReview)) ||
     (payload.existingReviewBranch &&
@@ -170,6 +322,8 @@ export function parseSubmissionResult(
   )
     throw invalid();
   return {
+    contractVersion: 2,
+    contributor: payload.expectedContributor,
     path: payload.path,
     branch: value.branch,
     prUrl: value.prUrl,

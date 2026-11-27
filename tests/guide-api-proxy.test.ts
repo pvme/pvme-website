@@ -69,9 +69,13 @@ test('local proxy forwards exact route/query, JSON, cookies and CSRF with fixed 
   );
   const run = middleware();
   for (const method of ['GET', 'POST', 'PUT']) {
+    const route =
+      method === 'POST'
+        ? '/v2/submissions?strict=2'
+        : '/auth/github/callback?code=mock&state=signed';
     const res = response();
     await run(
-      request(method, '/auth/github/callback?code=mock&state=signed', {
+      request(method, route, {
         cookie: 'session=old',
         'x-pvme-csrf-token': 'csrf-test',
         origin: 'http://localhost:4321',
@@ -91,10 +95,7 @@ test('local proxy forwards exact route/query, JSON, cookies and CSRF with fixed 
     ]);
     assert.equal(res.headers['cache-control'], 'no-store');
     const call = calls.at(-1);
-    assert.equal(
-      call.url,
-      'http://localhost:8080/auth/github/callback?code=mock&state=signed',
-    );
+    assert.equal(call.url, `http://localhost:8080${route}`);
     assert.equal(call.init.redirect, 'manual');
     assert.equal(call.init.headers.Cookie, 'session=old');
     assert.equal(call.init.headers['X-PVME-CSRF-Token'], 'csrf-test');

@@ -883,7 +883,23 @@ export function initializeInlineEditor(
         },
         session.loaded,
       );
-      download('pvme-guide-update.json', JSON.stringify(payload, null, 2));
+      download(
+        'pvme-guide-update.json',
+        JSON.stringify(
+          {
+            ...payload,
+            recoveryOnly: true,
+            ...(session.contributor
+              ? { expectedContributor: session.contributor }
+              : {}),
+            ...(session.loaded.reviewState
+              ? { reviewState: session.loaded.reviewState }
+              : {}),
+          },
+          null,
+          2,
+        ),
+      );
     } catch (error) {
       message('[data-prepare-status]', failure(error));
     }
@@ -900,9 +916,13 @@ export function initializeInlineEditor(
     activeArticle = undefined;
     blocked = undefined;
     submitted = undefined;
+    // Native close events are queued; do not later restore focus to the hidden
+    // review toolbar after completion has returned to published reading.
+    if (startTrigger) focusReturn.set(reviewDialog, startTrigger);
     reviewDialog.close();
     toolbar.hidden = true;
     invalidatePrepared();
+    startTrigger?.focus({ preventScroll: true });
   });
   doc.defaultView?.addEventListener('beforeunload', (event) => {
     if ((session?.count && persistenceError) || canvas?.hasUnappliedChanges) {
