@@ -329,6 +329,71 @@ function browserFixture(path: string) {
   return { document, window, browser };
 }
 
+test('boss alphabet headings retain matching groups through filters, search and reset', () => {
+  const { document, window, browser } = browserFixture('bosses/');
+  browser.history.replaceState(
+    null,
+    '',
+    browser.location.pathname + '?q=kiln&attribute=Solo',
+  );
+  const root = document.querySelector<HTMLElement>('[data-directory]')!;
+  initializeDirectory(root, browser);
+  const headings = [
+    ...root.querySelectorAll<HTMLElement>('[data-alphabet-heading]'),
+  ];
+  const visibleHeadings = () =>
+    headings
+      .filter((heading) => !heading.hidden)
+      .map((heading) => heading.textContent!.trim());
+  assert.deepEqual(visibleHeadings(), ['D–F']);
+  const kiln = root.querySelector('a[href$="/bosses/fight-kiln/"]')!;
+  assert.equal(kiln.querySelector('h3')?.textContent, 'Fight Kiln');
+  assert.equal(
+    page('bosses/fight-kiln/').document.querySelector('h1')?.textContent,
+    'Fight Kiln',
+  );
+  const kilnGuide = getCatalogue().guides.find(
+    (guide) => guide.path === 'rs3-full-boss-guides/fight-kiln.txt',
+  )!;
+  assert.equal(kilnGuide.title, 'Fight Kiln');
+  assert.equal(kilnGuide.subject, 'Fight Kiln');
+  const input = root.querySelector<HTMLInputElement>('[data-directory-query]')!;
+  const click = (selector: string) =>
+    root.querySelector(selector)!.dispatchEvent(new window.Event('click'));
+  const assertMatchingGroups = () => {
+    for (const heading of headings) {
+      const members: HTMLElement[] = [];
+      for (
+        let next = heading.nextElementSibling;
+        next && !next.matches('[data-alphabet-heading]');
+        next = next.nextElementSibling
+      ) {
+        if (next.matches('[data-entry]')) members.push(next as HTMLElement);
+      }
+      assert.equal(
+        heading.hidden,
+        members.every((entry) => entry.hidden),
+        heading.textContent!,
+      );
+    }
+  };
+  click('[data-dir-key="style"][data-value="Magic"]');
+  assert.deepEqual(visibleHeadings(), ['D–F']);
+  click('[data-dir-key="attribute"][data-value="Group"]');
+  assert.deepEqual(visibleHeadings(), []);
+  input.value = '';
+  input.dispatchEvent(new window.Event('input'));
+  assert.ok(visibleHeadings().length);
+  assertMatchingGroups();
+  click('[data-directory-reset]');
+  assert.equal(visibleHeadings().length, headings.length);
+  input.value = 'no-such-boss-xyz';
+  input.dispatchEvent(new window.Event('input'));
+  assert.deepEqual(visibleHeadings(), []);
+  click('[data-directory-reset]');
+  assertMatchingGroups();
+});
+
 test('directory and global searches keep filters and display simple result labels', async () => {
   for (const path of ['bosses/', 'slayer/', 'resources/', 'tools/']) {
     const { document, window, browser } = browserFixture(path);

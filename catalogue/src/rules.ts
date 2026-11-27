@@ -1,7 +1,7 @@
 import type { BaseStyle, Finding, Style } from './schema';
 
 // Bump when detection rules change to invalidate cached records.
-export const RULES_VERSION = '2.2.0';
+export const RULES_VERSION = '2.3.0';
 export const EXCLUDED_FOLDERS = new Set(['archive', 'navigation', 'commands', 'testing', 'development', 'dev', 'editor-resources', 'get-involved']);
 export const CATEGORIES: Record<string, string> = {
   'rs3-full-boss-guides': 'Boss', slayer: 'Slayer', afk: 'AFK', 'upgrading-info': 'Upgrade Orders',
@@ -36,16 +36,13 @@ export function styleCombination(text: string, emojiText = ''): { styles: Style[
 }
 export function canonicalAttribute(value: string): string {
   if (/^(?:afk|low[ -]effort|afk\s*\/\s*low[ -]effort)$/i.test(value.trim())) return 'AFK / Low Effort';
-  if (/^(?:duos?|trios?|quads?|groups?|small teams?|(?:[2-9]|10)s|\d+[ -]*(?:players?|people|man|person))$/i.test(value.trim())) return 'Group';
-  if (/^solos?$/i.test(value.trim())) return 'Solo';
   return value;
 }
 export function attributes(text: string, origin: Finding['origin'] = 'explicit', evidence = 'Method heading'): Finding[] {
   const n = normaliseHeading(text).replace(/\bnon[ -]?afk\b/g, '').replace(/\bnot afk\b/g, '').replace(/\bnon[ -]?active\b/g, '');
   const patterns: [string, RegExp][] = [
     ['AFK / Low Effort', /\b(?:afk|low[ -]effort)\b/], ['Active', /\bactive\b/],
-    ['High Effort', /\bhigh[ -]effort\b/], ['Solo', /\bsolos?\b/],
-    ['Group', /\b(?:duos?|trios?|quads?|groups?|small teams?|(?:[2-9]|10)s|\d+[ -]*(?:players?|people|man|person))\b/],
+    ['High Effort', /\bhigh[ -]effort\b/],
     ['Hard Mode', /\b(?:hard[ -]?modes?|hm)\b/], ['Normal Mode', /\b(?:normal[ -]?modes?|nm)\b/],
     ['Base Tank', /\bbase(?: tank)?\b/], ['Bomb Tank', /\bbomb(?: tank)?\b/], ['DPS', /\bdps\b/],
     ['Hybrid', /\bhybrid\b/], ['Cannon', /\bcannon\b/], ['Advanced', /\badvanced\b/],

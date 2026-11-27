@@ -1,6 +1,12 @@
 {
   "schemaVersion": 1,
   "files": {
+    "rs3-full-boss-guides/fight-kiln.txt": {
+      "fields": {
+        "title": "Fight Kiln",
+        "subject": "Fight Kiln"
+      }
+    },
     "rs3-full-boss-guides/ed3-shadow-reef/necromancy.txt": {
       "fields": {
         "subject": "ed3 shadow reef"

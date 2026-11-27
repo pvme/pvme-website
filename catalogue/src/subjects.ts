@@ -5,13 +5,20 @@ import { normaliseHeading } from './rules';
 const ENRAGE_PREFIX = /^\d+(?:\.\d+)?%?\s+enrage\s+/i;
 
 function clean(value: string): string {
-  return value.replace(/[_-]/g, ' ').replace(/^(?:afk|low effort|hard\s*mode|normal\s*mode)\s+/i, '')
+  return value.replace(/[_-]/g, ' ').replace(/^(?:afk|low effort|story\s*mode|hard\s*mode|normal\s*mode)\s+/i, '')
     .replace(ENRAGE_PREFIX, '')
     .replace(/\s+(?:combat achievements?|CAs?|basic)(?:\s+guide)?\b.*$/i, '')
     .replace(/\s*[–—-]\s*(?:boss )?guide\s*$/i, '').replace(/\s+boss guide$/i, '')
-    .replace(/\s*\((?:normal|hard)\s*mode[^)]*\)\s*$/i, '').replace(/\s+(?:duo|solo|small teams|\d+s|hm|nm|hard\s*mode|normal\s*mode)(?:\b.*)?$/i, '').trim();
+    .replace(/\s*\((?:(?:story|normal|hard)\s*mode|sm|nm|hm)[^)]*\)\s*$/i, '').replace(/\s+(?:duo|solo|small teams|\d+s|sm|hm|nm|story\s*mode|hard\s*mode|normal\s*mode)(?:\b.*)?$/i, '').trim();
 }
-const key = (value: string) => normaliseHeading(clean(value)).replace(/\bthe\b/g, '').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+const subjectIds: Record<string, string> = {
+  'silverquill-dreadhog': 'silverquill',
+  'ivar-king-of-bones': 'ivar',
+};
+const key = (value: string) => {
+  const normalized = normaliseHeading(clean(value)).replace(/\bthe\b/g, '').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+  return subjectIds[normalized] ?? normalized;
+};
 interface Entity { id: string; name: string; aliases: Set<string> }
 /** Build encounter aliases from overview filenames and titles. */
 export function canonicaliseSubjects(guides: Guide[]): Guide[] {
@@ -62,7 +69,7 @@ export function canonicaliseSubjects(guides: Guide[]): Guide[] {
       if (!encounter && guide.subject?.origin !== 'explicit') return { ...guide, subject: null, subjectId: null };
       return { ...guide, subject: guide.subject ?? { value: display, origin: 'inferred', evidence: 'Encounter title' }, subjectId: key(display) || null };
     }
-    const subject = guide.subject?.origin === 'explicit' || (guide.subject && !ENRAGE_PREFIX.test(guide.subject.value) && key(guide.subject.value) === key(entity.name)) ? guide.subject : { value: entity.name, origin: 'inferred' as const, evidence: 'Canonical encounter from matching overview/creature titles and source aliases' };
+    const subject = guide.subject?.origin === 'explicit' || (guide.subject && clean(guide.subject.value) === guide.subject.value && !ENRAGE_PREFIX.test(guide.subject.value) && key(guide.subject.value) === key(entity.name)) ? guide.subject : { value: entity.name, origin: 'inferred' as const, evidence: 'Canonical encounter from matching overview/creature titles and source aliases' };
     const extra = [...entity.aliases].filter(a => a !== entity!.name && a.length <= 80);
     const subjectAliases = [...(guide.subjectAliases ?? []), ...extra.map(value => ({ value, origin: 'inferred' as const, evidence: 'Source title/filename or supported title initials' }))].filter((a, index, list) => list.findIndex(b => key(b.value) === key(a.value)) === index);
     return { ...guide, subject, subjectId: entity.id, subjectAliases };

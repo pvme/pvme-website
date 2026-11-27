@@ -6,6 +6,7 @@ import CombatText from './CombatText.astro';
 import { combatStyleNames } from '../lib/combat-styles';
 import { guideHasDirectoryStyle } from '../lib/combat-style-directory';
 import { groupCollectionCards } from '../lib/collection-cards';
+import { bossDirectoryAttributes } from '../lib/boss-party-types';
 const {
   hubs,
   guides,
@@ -22,17 +23,25 @@ const {
   parentPath?: string;
 };
 const cardGroups = hubs ? groupCollectionCards(hubs, parentPath) : [];
+const hubAttributes = new Map(
+  hubs?.map((hub) => [
+    hub.id,
+    label === 'bosses'
+      ? bossDirectoryAttributes(hub)
+      : hub.guides.flatMap((guide) => guide.attributes),
+  ]),
+);
 const filterGroups = [
   { label: 'Solo', values: ['Solo'] },
-  { label: 'Group', values: ['Group', 'Duo', 'Trio'] },
+  { label: 'Group', values: ['Group'] },
   {
     label: 'AFK / Low Effort',
     values: ['AFK / Low Effort', 'AFK', 'Low Effort', 'AFK & Low Effort'],
   },
 ];
 const attributes = filterGroups.filter(({ values }) =>
-  hubs?.some((h) =>
-    h.guides.some((g) => g.attributes.some((a) => values.includes(a))),
+  [...hubAttributes.values()].some((attributes) =>
+    attributes.some((a) => values.includes(a)),
   ),
 );
 const alphabet = label === 'bosses' && hubs;
@@ -204,7 +213,7 @@ const styles = hubs
                     data-entry
                     data-styles={JSON.stringify(hubStyles.get(hub.id) || [])}
                     data-attributes={JSON.stringify(
-                      hub.guides.flatMap((g) => g.attributes),
+                      hubAttributes.get(hub.id) || [],
                     )}
                     data-terms={[
                       hub.name,

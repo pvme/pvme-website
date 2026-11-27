@@ -38,6 +38,19 @@ export function initializeDirectory(
   }
   const input = root.querySelector<HTMLInputElement>('[data-directory-query]')!;
   const entries = [...root.querySelectorAll<HTMLElement>('[data-entry]')];
+  const alphabetGroups = [
+    ...root.querySelectorAll<HTMLElement>('[data-alphabet-heading]'),
+  ].map((heading) => {
+    const members: HTMLElement[] = [];
+    for (
+      let sibling = heading.nextElementSibling;
+      sibling && !sibling.matches('[data-alphabet-heading]');
+      sibling = sibling.nextElementSibling
+    ) {
+      if (sibling.matches('[data-entry]')) members.push(sibling as HTMLElement);
+    }
+    return { heading, members };
+  });
   const reset = [
     ...root.querySelectorAll<HTMLButtonElement>('[data-directory-reset]'),
   ];
@@ -73,11 +86,6 @@ export function initializeDirectory(
           c.dataset.dirKey === 'attribute' && c.dataset.value === attribute,
       )?.dataset.matchValues || '[]',
     );
-    root
-      .querySelectorAll<HTMLElement>('[data-alphabet-heading]')
-      .forEach((heading) => {
-        heading.hidden = !!(q || style || topic || attribute);
-      });
     for (const entry of entries) {
       const strings = (key: string): string[] =>
         JSON.parse(entry.dataset[key] || '[]');
@@ -87,6 +95,9 @@ export function initializeDirectory(
         (!!topic && entry.dataset.category !== topic) ||
         (!!attribute &&
           !strings('attributes').some((a) => attributeValues.includes(a)));
+    }
+    for (const { heading, members } of alphabetGroups) {
+      heading.hidden = !members.some((entry) => !entry.hidden);
     }
     root
       .querySelectorAll<HTMLElement>('[data-directory-card-group]')
