@@ -124,6 +124,199 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   margin-top: 2px;
   min-width: 0;
 }
+.inline-editor-status:has(.guide-diagnostics-shortcuts) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.inline-editor-status > [data-editor-status] {
+  min-width: 0;
+}
+.guide-diagnostics > summary {
+  cursor: pointer;
+  color: #b9d2ff;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.guide-diagnostics {
+  margin: 12px 0 20px;
+  padding: 12px;
+  border: 1px solid #52759b;
+  border-radius: 7px;
+  background: #152437;
+  scroll-margin-top: calc(var(--inline-editor-height, 48px) + 12px);
+}
+.guide-diagnostics > summary {
+  white-space: normal;
+  font-weight: 600;
+}
+.guide-diagnostics[open] > summary {
+  margin-bottom: 10px;
+}
+.guide-diagnostics-shortcuts {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.guide-diagnostics-shortcuts[hidden] {
+  display: none;
+}
+.guide-diagnostics-shortcuts button {
+  font-size: 0.75rem;
+}
+.guide-issue-list {
+  max-height: 26dvh;
+  overflow: auto;
+}
+.guide-diagnostics .guide-issue-list button,
+.inline-review-dialog [data-review-diagnostics] button {
+  border: 1px solid #3c536d;
+  border-radius: 5px;
+  background: #172a40;
+  color: #e4edf8;
+  cursor: pointer;
+  padding: 8px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.guide-diagnostics [data-severity='error'] {
+  color: #ffc3c3;
+}
+.guide-diagnostics [data-severity='warning'] {
+  color: #f4d790;
+}
+.guide-diagnostics button:focus-visible,
+.canvas-page-source :focus-visible {
+  outline: 2px solid #b7daff;
+  outline-offset: 2px;
+}
+.canvas-source-location {
+  display: block;
+  color: #9eb2cb;
+  font: 0.75rem/1.4 monospace;
+  margin-bottom: 6px;
+}
+.canvas-page-source {
+  margin: 12px 0;
+}
+.canvas-page-source h3 {
+  margin: 0 0 8px;
+}
+.numbered-source {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  border: 1px solid #597c9c;
+  border-radius: 5px;
+  background: #081827;
+  overflow: hidden;
+}
+.numbered-source .source-line-numbers,
+.numbered-source textarea {
+  height: 45dvh;
+  min-height: 200px;
+  margin: 0;
+  padding: 10px 8px;
+  border: 0;
+  box-sizing: border-box;
+  font: 0.875rem/1.5 monospace;
+  white-space: pre;
+  tab-size: 4;
+}
+.numbered-source .source-line-numbers {
+  color: #9eb2cb;
+  background: #14243a;
+  overflow: hidden;
+  text-align: right;
+  user-select: none;
+}
+.numbered-source textarea {
+  width: 100%;
+  min-width: 0;
+  background: #081827;
+  color: #edf6ff;
+  overflow: auto;
+  resize: none;
+}
+.source-caret-location {
+  color: #9eb2cb;
+  font-size: 0.875rem;
+}
+@media (max-width: 900px) {
+  .inline-editor-status:has(.guide-diagnostics-shortcuts)
+    > [data-editor-status] {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .numbered-source textarea,
+  .numbered-source .source-line-numbers {
+    font-size: 1rem;
+  }
+}
+.page-canvas [hidden] {
+  display: none;
+}
+.guide-issue-list {
+  display: grid;
+  gap: 6px;
+}
+.inline-toolbar .guide-issue-list button,
+[data-review-diagnostics] p {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.inline-toolbar .guide-issue-list button {
+  display: block;
+  height: auto;
+  min-height: 44px;
+  padding: 8px;
+  justify-content: flex-start;
+}
+.inline-toolbar .guide-issue-list button[data-severity='error'],
+[data-review-diagnostics] [data-severity='error'] {
+  color: #ffc3c3;
+}
+.inline-toolbar .guide-issue-list button[data-severity='warning'],
+[data-review-diagnostics] [data-severity='warning'] {
+  color: #f4d790;
+}
+.guide-diagnostics textarea {
+  width: 100%;
+  min-height: 180px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #597c9c;
+  border-radius: 5px;
+  background: #081827;
+  color: #edf6ff;
+  font: 0.875rem/1.5 monospace;
+}
+.inline-toolbar .inline-editor-status .guide-diagnostics p {
+  white-space: normal;
+  font-size: 0.875rem;
+}
+[data-review-diagnostics] {
+  max-height: 30dvh;
+  overflow: auto;
+}
+[data-guide-issue] {
+  outline: 3px solid #f4d790;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .inline-editor-status:has(.guide-diagnostics-shortcuts)
+    > [data-editor-status] {
+    display: none;
+  }
+}
 .inline-toolbar .inline-editor-status p {
   margin: 0;
   font-size: 11px;
@@ -710,6 +903,11 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
   font-weight: 400;
   font-size: 16px;
 }
+.inline-dialog input[data-acknowledge-issues] {
+  display: inline-block;
+  width: auto;
+  margin: 0 8px 0 0;
+}
 .inline-dialog header {
   display: flex;
   justify-content: space-between;
@@ -1048,16 +1246,26 @@ body:has(.inline-toolbar:not([hidden])) .guide-page-heading {
 }
 @media (max-width: 600px) {
   body:has(.inline-toolbar:not([hidden])) {
-    --inline-editor-height: 60px;
+    --inline-editor-height: 84px;
   }
   .inline-toolbar {
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 6px;
     padding: 8px;
   }
-  .inline-editor-context,
+  .inline-editor-context {
+    display: block;
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    right: 8px;
+  }
+  .inline-editor-context .inline-editing-badge,
+  .inline-editor-context strong,
+  .inline-editor-context [data-editor-feedback],
   .inline-editor-secondary,
   .inline-editor-options:not(:has([data-draft-recovery]:not([hidden]))),
   .inline-review-action > svg {

@@ -104,6 +104,277 @@ function fixture(
   };
 }
 
+function acknowledge(f: ReturnType<typeof fixture>) {
+  const checkbox = f.document.querySelector<HTMLInputElement>(
+    '[data-acknowledge-issues]',
+  )!;
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+}
+
+test('live guide diagnostics navigate current blocks, refresh after undo/redo and restore recovered drafts', async () => {
+  const text = '# Guide\r\n.\r\n## Bad\r\n.\r\nOriginal';
+  const store = new MemoryStore();
+  const f = fixture(store, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  assert.ok(f.document.querySelector('[data-issue-code="HEADING_UNDERLINE"]'));
+  f.click('[data-guide-diagnostics] [data-issue-code="HEADING_UNDERLINE"]');
+  assert.equal(
+    f.document
+      .querySelector('[data-guide-issue]')!
+      .getAttribute('data-canvas-kind'),
+    'heading',
+  );
+  let input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-source]',
+  )!;
+  input.value = '## __Fixed__';
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.equal(f.document.querySelector('[data-guide-issue]'), null);
+  assert.equal(
+    f.document.querySelector('[data-issue-code="HEADING_UNDERLINE"]'),
+    null,
+  );
+  [...f.document.querySelectorAll<HTMLButtonElement>('button')]
+    .find((b) => b.textContent === 'Apply source')!
+    .click();
+  await f.settle();
+  f.click('[data-canvas-undo]');
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.ok(
+    f.document.querySelector(
+      '[data-guide-diagnostics] [data-issue-code="HEADING_UNDERLINE"]',
+    ),
+  );
+  f.click('[data-canvas-redo]');
+  f.click('[data-editor-exit]');
+  const recovered = fixture(store, text, true);
+  recovered.click('[data-inline-edit-path]');
+  await recovered.settle();
+  assert.equal(
+    recovered.controller.session!.content(),
+    text.replace('## Bad', '## __Fixed__'),
+  );
+  assert.equal(
+    recovered.document.querySelector('[data-issue-code="HEADING_UNDERLINE"]'),
+    null,
+  );
+});
+
+test('unmapped diagnostics open editable numbered page source at the affected location', async () => {
+  const text = '---\ntitle: [broken\n---\n# Guide';
+  const f = fixture(undefined, text, false);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  const panel = f.document.querySelector<HTMLDetailsElement>(
+    '[data-guide-diagnostics]',
+  )!;
+  assert.ok(panel.open);
+  assert.ok(f.controller.article!.contains(panel));
+  const issue = panel.querySelector<HTMLButtonElement>('[data-issue-code]')!;
+  issue.click();
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!;
+  assert.ok(input);
+  const selections: number[][] = [];
+  input.setSelectionRange = (start, end) => {
+    selections.push([start ?? 0, end ?? 0]);
+  };
+  issue.click();
+  assert.equal(input.value, text);
+  assert.ok(!input.readOnly);
+  assert.equal(selections.length, 1);
+  assert.ok(selections[0][0] <= selections[0][1]);
+  assert.equal(
+    f.document.querySelector('.source-line-numbers')!.textContent,
+    '1\n2\n3\n4',
+  );
+  assert.equal(f.controller.session!.content(), text);
+});
+
+test('checker exposes heading issues while editing and underlines a heading with an undoable action', async () => {
+  const text = '# Guide\r\n.\r\n## Bad heading\r\n.tag:keep\r\nBody\r\n';
+  const f = fixture(undefined, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  const panel = f.document.querySelector<HTMLDetailsElement>(
+    '[data-guide-diagnostics]',
+  )!;
+  assert.ok(panel.open);
+  assert.ok(panel.closest('[data-page-canvas]'));
+  const issue = panel.querySelector('[data-issue-code="HEADING_UNDERLINE"]')!;
+  assert.match(issue.textContent!, /Bad heading.*Heading.*source line 3/);
+  assert.match(
+    f.document.querySelector(
+      '[data-canvas-kind="heading"] [data-block-source-line]',
+    )!.textContent!,
+    /Source line/,
+  );
+  f.click('[data-guide-diagnostics] [data-issue-underline]');
+  await f.settle();
+  assert.equal(
+    f.controller.session!.content(),
+    text.replace('## Bad heading', '## __Bad heading__'),
+  );
+  assert.ok(!panel.querySelector('[data-issue-code="HEADING_UNDERLINE"]'));
+  f.click('[data-canvas-undo]');
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.equal(f.controller.session!.content(), text);
+  assert.ok(panel.querySelector('[data-issue-code="HEADING_UNDERLINE"]'));
+});
+
+test('page source validates live, preserves bytes on Apply, and participates in undo and recovery', async () => {
+  const text =
+    '\uFEFF---\r\nname: Original\r\n---\r\n# Guide 🚀\r\n.\r\nFirst\nSecond\r\n.\r\nTail\r\n';
+  const store = new MemoryStore();
+  const f = fixture(store, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  f.click('[data-editor-page-source]');
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!;
+  assert.ok(input);
+  input.value = input.value
+    .replaceAll('\r\n', '\n')
+    .replace('First', '.unknown:bad');
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.ok(
+    f.document.querySelector(
+      '[data-guide-diagnostics] [data-issue-code="UNKNOWN_COMMAND"]',
+    ),
+  );
+  f.click('[data-page-source-apply]');
+  assert.equal(f.controller.session!.content(), text);
+  assert.ok(f.document.querySelector('[data-canvas-page-source]'));
+  input.value = text
+    .replaceAll('\r\n', '\n')
+    .replace('name: Original', 'name: Changed')
+    .replace('First', 'Edited');
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.ok(!f.document.querySelector('[data-issue-code="UNKNOWN_COMMAND"]'));
+  f.click('[data-page-source-apply]');
+  const edited = text
+    .replace('name: Original', 'name: Changed')
+    .replace('First', 'Edited');
+  assert.equal(f.controller.session!.content(), edited);
+  assert.ok(!f.document.querySelector('[data-page-source-editor]'));
+  f.click('[data-canvas-undo]');
+  assert.equal(f.controller.session!.content(), text);
+  f.click('[data-canvas-redo]');
+  assert.equal(f.controller.session!.content(), edited);
+  f.click('[data-editor-exit]');
+  const recovered = fixture(store, text, true);
+  recovered.click('[data-inline-edit-path]');
+  await recovered.settle();
+  assert.equal(recovered.controller.session!.content(), edited);
+});
+
+test('inline embed edits refresh Discord schema errors and undo clears them', async () => {
+  const text =
+    '# Guide\n.\n{"embed":{"title":"Original","description":"Keep"}}\n.embed:json\n.';
+  const f = fixture(undefined, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  f.click('[data-embed-text=\'["embed","title"]\']');
+  await f.settle();
+  const input = f.document.querySelector<HTMLElement>('.inline-line-input')!;
+  input.querySelector('[data-rich-row]')!.textContent = 'x'.repeat(257);
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  f.click('[data-line-done]');
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.ok(
+    f.document.querySelector(
+      '[data-guide-diagnostics] [data-issue-code="EMBED_SCHEMA"]',
+    ),
+  );
+  assert.ok(f.controller.session!.content().includes('"description":"Keep"'));
+  f.click('[data-canvas-undo]');
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.equal(f.controller.session!.content(), text);
+  assert.equal(
+    f.document.querySelector('[data-issue-code="EMBED_SCHEMA"]'),
+    null,
+  );
+});
+
+test('review issues lead back to editable page source and cancellation preserves the draft', async () => {
+  const text = '# Guide\n.\n## Bad\n.\nOriginal';
+  const f = fixture(undefined, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  f.click('[data-editor-page-source]');
+  const firstInput = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!;
+  firstInput.value = text.replace('Original', 'Edited');
+  firstInput.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  f.click('[data-page-source-apply]');
+  f.click('[data-editor-review]');
+  const dialog = f.document.querySelector<HTMLDialogElement>(
+    '[data-review-dialog]',
+  )!;
+  assert.ok(dialog.open);
+  assert.match(
+    f.document.querySelector(
+      '[data-review-diagnostics] [data-issue-code="HEADING_UNDERLINE"]',
+    )!.textContent!,
+    /Bad.*Heading.*source line 3/,
+  );
+  f.click('[data-review-diagnostics] .guide-issue-source');
+  assert.ok(!dialog.open);
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!;
+  assert.equal(input.value, text.replace('Original', 'Edited'));
+  input.value = input.value.replace('## Bad', '## __Bad__');
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  f.click('[data-page-source-cancel]');
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.equal(
+    f.controller.session!.content(),
+    text.replace('Original', 'Edited'),
+  );
+  assert.ok(
+    f.document.querySelector(
+      '[data-guide-diagnostics] [data-issue-code="HEADING_UNDERLINE"]',
+    ),
+  );
+});
+
+test('cancelling pending message source refreshes live diagnostics after a keyboard mode switch', async () => {
+  const text = '# Guide\n.\nOriginal';
+  const f = fixture(undefined, text, true);
+  f.click('[data-inline-edit-path]');
+  await f.settle();
+  f.click('[data-message-source]');
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-message-source]',
+  )!;
+  input.value = '.unknown:bad';
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.ok(
+    f.document.querySelector(
+      '[data-guide-diagnostics] [data-issue-code="UNKNOWN_COMMAND"]',
+    ),
+  );
+  const escape = new f.window.Event('keydown', {
+    bubbles: true,
+    cancelable: true,
+  });
+  Object.defineProperty(escape, 'key', { value: 'Escape' });
+  input.dispatchEvent(escape);
+  await new Promise((resolve) => setTimeout(resolve, 280));
+  assert.equal(f.controller.session!.content(), text);
+  assert.ok(!f.document.querySelector('[data-issue-code="UNKNOWN_COMMAND"]'));
+});
+
 test('wide toolbars expose discard while narrow toolbars keep it in overflow', async () => {
   const viewport: { matches: boolean; changed?: () => void } = {
     matches: true,
@@ -258,6 +529,7 @@ test('discarding sections preserves remaining edits and disables submission when
     f.document.querySelector<HTMLElement>('[data-review-empty]')!.hidden,
     false,
   );
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.downloads.length, 0);
@@ -313,12 +585,14 @@ test('review downloads validated changes in one action and retains errors withou
     { entryId: session.map.entries[0].id, replacement: 'Updated' },
   ]);
   f.click('[data-editor-review]');
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.downloads.length, 0);
   assert.ok(f.document.querySelector('[data-prepare-status]')!.textContent);
   f.document.querySelector<HTMLTextAreaElement>('[name="notes"]')!.value =
     'Clarify the instructions.';
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.downloads.length, 1);
@@ -385,6 +659,7 @@ test('link controls edit independent fields, bare URLs update labels and invalid
   f.document.querySelector<HTMLInputElement>(
     '[data-prepare-form] [name="notes"]',
   )!.value = 'Fix guide';
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   const payload = JSON.parse(f.downloads.at(-1)!);
@@ -691,7 +966,7 @@ test('page-canvas changes share review, verified export, exit and draft restorat
   );
   f.click('[data-canvas-drop]');
   f.click('[data-canvas-new="heading"]');
-  assert.ok(f.controller.session!.content().includes('## New section'));
+  assert.ok(f.controller.session!.content().includes('## __New section__'));
   f.click('[data-editor-review]');
   assert.match(
     f.document.querySelector('[data-source-diff]')!.textContent!,
@@ -703,6 +978,7 @@ test('page-canvas changes share review, verified export, exit and draft restorat
   f.document.querySelector<HTMLTextAreaElement>(
     '[data-prepare-form] [name="notes"]',
   )!.value = 'Adds the missing section.';
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   const payload = JSON.parse(f.downloads.at(-1)!);
@@ -719,7 +995,7 @@ test('page-canvas changes share review, verified export, exit and draft restorat
   f.click('[data-inline-edit-path]');
   await f.settle();
   assert.ok(f.document.querySelector('[data-page-canvas]'));
-  assert.ok(f.controller.session!.content().includes('## New section'));
+  assert.ok(f.controller.session!.content().includes('## __New section__'));
   f.click('[data-editor-discard]');
   f.click('[data-confirm-discard]');
   assert.equal(f.controller.session!.content(), text);
@@ -1275,9 +1551,47 @@ async function submissionFixture(
     release: () => release?.(),
   };
 }
+test('strict submission requires source-bound issue acknowledgement and leaves recovery export available', async () => {
+  const f = await submissionFixture('## Bad\n.\nOriginal');
+  assert.ok(
+    f.document.querySelector(
+      '[data-review-diagnostics] [data-issue-code="HEADING_UNDERLINE"]',
+    ),
+  );
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 0);
+  assert.match(
+    f.document.querySelector('[data-prepare-status]')!.textContent!,
+    /acknowledge/,
+  );
+  f.click('[data-submit-export]');
+  await f.settle();
+  assert.equal(f.downloads.length, 1);
+  acknowledge(f);
+  f.controller.session!.setDocument('## Bad\n.\nAnother edit');
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 0);
+  assert.equal(
+    f.document.querySelector<HTMLInputElement>('[data-acknowledge-issues]')!
+      .checked,
+    false,
+  );
+  acknowledge(f);
+  f.submit('[data-prepare-form]');
+  await f.settle();
+  assert.equal(f.posts, 1);
+  assert.match(
+    f.document.querySelector('[data-prepare-status]')!.textContent!,
+    /Created your pull request/,
+  );
+});
 test('authenticated review shows real pending/success, keeps recovery export, and returns to published reading', async () => {
   const f = await submissionFixture(undefined, false, false, true);
+  acknowledge(f);
   f.submit('[data-prepare-form]');
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.posts, 1);
@@ -1323,6 +1637,7 @@ test('master replacement requires a checkbox; dry-run remains clearly unpublishe
     f.document.querySelector<HTMLElement>('[data-replacement-consent]')!.hidden,
     false,
   );
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.posts, 0);
@@ -1335,6 +1650,7 @@ test('master replacement requires a checkbox; dry-run remains clearly unpublishe
   )!;
   input.checked = true;
   input.dispatchEvent(new f.window.Event('change', { bubbles: true }));
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   assert.equal(f.posts, 1);
@@ -1350,6 +1666,7 @@ test('master replacement requires a checkbox; dry-run remains clearly unpublishe
 });
 test('account suspension hides a late success and never retires the previous contributor draft', async () => {
   const f = await submissionFixture(undefined, false, false, true);
+  acknowledge(f);
   f.submit('[data-prepare-form]');
   await f.settle();
   f.controller.suspend();

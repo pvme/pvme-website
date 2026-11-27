@@ -22,6 +22,7 @@ import {
   type SubmissionReceipt,
 } from '../lib/guide-submission';
 import { guideEditorHref } from '../lib/guide-editor';
+import { GuideDiagnostics } from './guide-diagnostics';
 
 export interface InlineEditorOptions {
   provider: GuideSourceProvider;
@@ -107,6 +108,58 @@ export function initializeInlineEditor(
   let confirmAction: (() => void) | undefined;
   let resumeLineAfterLink = false;
   let canvas: PageCanvasEditor | undefined;
+  const diagnostics = new GuideDiagnostics(
+    doc,
+    () =>
+      session ? (canvas?.diagnosticSource() ?? session.content()) : undefined,
+    (issue, source) => {
+      focusReturn.delete(reviewDialog);
+      if (reviewDialog.open) reviewDialog.close();
+      return (
+        canvas?.revealIssue(
+          issue.range.start.offset,
+          issue.range.end.offset,
+          source,
+        ) ?? false
+      );
+    },
+    () =>
+      doc
+        .querySelectorAll('[data-guide-issue]')
+        .forEach((element) => element.removeAttribute('data-guide-issue')),
+    () => (session ? guideEditorHref({ path: session.path }) : undefined),
+    {
+      host: () => canvas?.root || activeArticle,
+      openSource: (start, end, source) => {
+        if (!session || blocked) return false;
+        focusReturn.delete(reviewDialog);
+        if (reviewDialog.open) reviewDialog.close();
+        openCanvas();
+        return canvas?.openPageSource(start, end, source) ?? false;
+      },
+      underline: async (issue, source) => {
+        if (!session || blocked) return false;
+        focusReturn.delete(reviewDialog);
+        if (reviewDialog.open) reviewDialog.close();
+        openCanvas();
+        return (
+          (await canvas?.underlineHeading(
+            issue.range.start.offset,
+            issue.range.end.offset,
+            source,
+          )) ?? false
+        );
+      },
+    },
+  );
+  doc.addEventListener('input', (event) => {
+    if (
+      (event.target as Element).closest(
+        '[data-page-canvas],article[data-inline-active]',
+      )
+    )
+      diagnostics.schedule();
+  });
   const draftViews = new Map<HTMLElement, () => void>();
   const loadingViews = new Set<HTMLElement>();
   const restoreReadingDrafts = async () => {
@@ -240,12 +293,19 @@ export function initializeInlineEditor(
     get<HTMLButtonElement>('[data-editor-discard]').disabled =
       !session.count || !!blocked;
     arrangeToolbar();
+    diagnostics.schedule();
   };
   const openCanvas = () => {
     if (!session || !activeArticle || blocked || canvas || !lineEditor.finish())
       return;
     updateDraftPreview(doc, session, false);
-    canvas = new PageCanvasEditor(doc, activeArticle, session, () => update());
+    canvas = new PageCanvasEditor(
+      doc,
+      activeArticle,
+      session,
+      () => update(),
+      () => queueMicrotask(() => diagnostics.schedule()),
+    );
   };
   const showRecovery = () => {
     get('[data-draft-recovery]').hidden = !blocked;
@@ -351,6 +411,7 @@ export function initializeInlineEditor(
       showRecovery();
       if (options.pageCanvas && !blocked) openCanvas();
       update(false);
+      diagnostics.flush();
       if (result.status === 'restored')
         message(
           '[data-editor-status]',
@@ -415,6 +476,7 @@ export function initializeInlineEditor(
   let reviewedEdits: SourceEdit[] = [];
   const renderDiff = () => {
     if (!session) return;
+    diagnostics.flush();
     const diff = get('[data-source-diff]');
     diff.replaceChildren();
     reviewedContent = session.content();
@@ -771,6 +833,7 @@ export function initializeInlineEditor(
     canvas = undefined;
     if (session) updateDraftPreview(doc, session, false);
     session = undefined;
+    diagnostics.reset();
     blocked = undefined;
     activeArticle = undefined;
     toolbar.hidden = true;
@@ -783,6 +846,13 @@ export function initializeInlineEditor(
     async (event) => {
       event.preventDefault();
       if (!session || blocked || !session.count || submissionPending) return;
+      if (!diagnostics.canSubmit()) {
+        message(
+          '[data-prepare-status]',
+          'Review and acknowledge the guide errors and warnings before submitting.',
+        );
+        return;
+      }
       invalidatePrepared();
       const currentSession = session,
         generation = prepareGeneration;
@@ -913,6 +983,7 @@ export function initializeInlineEditor(
     canvas = undefined;
     if (session) updateDraftPreview(doc, session, false);
     session = undefined;
+    diagnostics.reset();
     activeArticle = undefined;
     blocked = undefined;
     submitted = undefined;
@@ -954,6 +1025,7 @@ export function initializeInlineEditor(
       for (const clear of draftViews.values()) clear();
       draftViews.clear();
       session = undefined;
+      diagnostics.reset();
       activeArticle = undefined;
       blocked = undefined;
       submitted = undefined;

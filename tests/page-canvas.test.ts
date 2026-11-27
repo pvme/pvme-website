@@ -26,9 +26,132 @@ import type {
   LinkPage,
 } from '../src/lib/guide-source-provider';
 import { pvmeChannelUrl } from '../src/lib/link-destination';
+import { validateGuide } from '../src/lib/guide-validation';
 
 const session = async (source: string) =>
   (await createTestGuide(source, 'test/canvas.txt')).session;
+
+test('advanced section edits retain untouched CRLF bytes and undo/redo retain exact source', async () => {
+  const source =
+    '# Guide\r\n.\r\nFirst line\r\nSecond line\r\nThird line\r\n.\r\nTail 🚀\r\n';
+  const f = await fixture(source);
+  const start = source.indexOf('First line');
+  assert.equal(f.canvas.revealIssue(start, start + 5, source), true);
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-source]',
+  )!;
+  // Native textareas expose LF even when their assigned source used CRLF.
+  input.value = input.value
+    .replaceAll('\r\n', '\n')
+    .replace('Second', 'Changed');
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  assert.equal(f.s.content(), source);
+  assert.ok(f.canvas.diagnosticSource().includes('Changed line'));
+  const apply = [
+    ...f.document.querySelectorAll<HTMLButtonElement>('button'),
+  ].find((b) => b.textContent === 'Apply source')!;
+  apply.click();
+  assert.equal(f.s.content(), source.replace('Second', 'Changed'));
+  assert.ok(!validateGuide(f.s.content()).some((i) => i.severity === 'error'));
+  assert.equal(f.document.querySelector('[data-guide-issue]'), null);
+  f.click('[data-canvas-undo]');
+  assert.equal(f.s.content(), source);
+  f.click('[data-canvas-redo]');
+  assert.equal(f.s.content(), source.replace('Second', 'Changed'));
+  assert.equal(f.canvas.revealIssue(start, start + 5, source), false);
+});
+
+test('invalid pending advanced input is diagnosed without corrupting the accepted guide', async () => {
+  const source = '# Guide\n.\nOriginal\n.\nTail';
+  const f = await fixture(source);
+  const start = source.indexOf('Original');
+  f.canvas.revealIssue(start, start + 8, source);
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-source]',
+  )!;
+  input.value = '.unknown:bad';
+  input.dispatchEvent(new f.window.Event('input', { bubbles: true }));
+  assert.ok(
+    validateGuide(f.canvas.diagnosticSource()).some(
+      (i) => i.source === 'parser' && i.code === 'UNKNOWN_COMMAND',
+    ),
+  );
+  [...f.document.querySelectorAll<HTMLButtonElement>('button')]
+    .find((b) => b.textContent === 'Apply source')!
+    .click();
+  assert.equal(f.s.content(), source);
+  assert.equal(f.canvas.hasUnappliedChanges, true);
+  assert.equal(
+    f.canvas.revealIssue(start, start + 1, f.canvas.diagnosticSource()),
+    false,
+  );
+});
+
+test('whole-page source refuses to overwrite a newer accepted document', async () => {
+  const original = '# Guide\r\n.\r\nOriginal\r\n';
+  const f = await fixture(original);
+  assert.equal(f.canvas.openPageSource(), true);
+  const input = f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!;
+  input.value = original.replace('Original', 'Older pending input');
+  f.s.setDocument(original.replace('Original', 'Newer accepted edit'));
+  f.canvas.sync();
+  f.click('[data-page-source-apply]');
+  assert.equal(
+    f.s.content(),
+    original.replace('Original', 'Newer accepted edit'),
+  );
+  assert.ok(f.document.querySelector('[data-canvas-page-source]'));
+  assert.match(
+    f.document.querySelector('[role="status"]')!.textContent!,
+    /guide changed/,
+  );
+  f.click('[data-page-source-cancel]');
+  assert.equal(
+    f.s.content(),
+    original.replace('Original', 'Newer accepted edit'),
+  );
+});
+
+test('whole-page source normalised textarea no-op retains BOM, mixed endings and history', async () => {
+  const original = '\uFEFF# Guide\r\n.\nFirst\r\nSecond\n';
+  const f = await fixture(original);
+  f.canvas.openPageSource();
+  f.document.querySelector<HTMLTextAreaElement>(
+    '[data-canvas-page-source]',
+  )!.value = original.replaceAll('\r\n', '\n');
+  f.click('[data-page-source-apply]');
+  assert.equal(f.s.content(), original);
+  assert.equal(f.s.count, 0);
+  assert.equal(
+    f.document.querySelector<HTMLButtonElement>('[data-canvas-undo]')!.disabled,
+    true,
+  );
+});
+
+test('explicit heading underlining retains protected content and neighbouring source', async () => {
+  const source =
+    '# Guide\r\n.\r\n## __Some__ more <:magic:123456>\r\n.tag:keep\r\n.\r\nTail\r\n';
+  const f = await fixture(source);
+  const block = canvasBlocks(source).find(
+    (block) => block.kind === 'heading' && block.start > 0,
+  )!;
+  assert.equal(
+    await f.canvas.underlineHeading(block.start, block.end, source),
+    true,
+  );
+  assert.ok(
+    !validateGuide(f.s.content()).some(
+      (issue) => issue.code === 'HEADING_UNDERLINE',
+    ),
+  );
+  assert.ok(f.s.content().startsWith('# Guide\r\n.\r\n## '));
+  assert.ok(f.s.content().includes('<:magic:123456>'));
+  assert.ok(f.s.content().endsWith('\r\n.tag:keep\r\n.\r\nTail\r\n'));
+  f.click('[data-canvas-undo]');
+  assert.equal(f.s.content(), source);
+});
 const embed = (eol = '\n') =>
   [
     '.',
@@ -212,7 +335,7 @@ test('page snapshots compose prior inline edits and restore through verified dra
   const content = insertCanvasBlock(
     s.content(),
     s.content().length,
-    '## New section',
+    '## __New section__',
   );
   s.setDocument(content);
   assert.equal(s.count, 1);
@@ -315,7 +438,7 @@ test('insertion menus are contextual, keyboard dismissible, and insert at their 
     );
   f.click('[data-canvas-new="heading"]');
   assert.ok(f.s.content().startsWith('# First\n\nLast paragraph'));
-  assert.ok(f.s.content().endsWith('## New section'));
+  assert.ok(f.s.content().endsWith('## __New section__'));
   assert.equal(f.document.querySelector('[data-canvas-insert-menu]'), null);
   assert.equal(
     f.document.querySelector<HTMLElement>('.canvas-properties')!.hidden,
@@ -409,7 +532,7 @@ test('palette drag/drop creates a new section at the chosen position and existin
   const drop = new f.window.Event('drop', { bubbles: true, cancelable: true });
   Object.assign(drop, { dataTransfer: transfer });
   f.document.querySelector('[data-canvas-drop]')!.dispatchEvent(drop);
-  assert.ok(f.s.content().startsWith('## New section'));
+  assert.ok(f.s.content().startsWith('## __New section__'));
   const cards = [...f.document.querySelectorAll('[data-canvas-block]')];
   const move = new f.window.Event('dragstart', {
     bubbles: true,

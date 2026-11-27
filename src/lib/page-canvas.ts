@@ -206,9 +206,12 @@ export function validatePageSource(original: string, content: string): string {
   const frontmatter = /^(?:\uFEFF)?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.exec(
     original,
   )?.[0];
-  if (frontmatter && !content.startsWith(frontmatter))
+  if (
+    frontmatter &&
+    !/^(?:\uFEFF)?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.test(content)
+  )
     throw new Error(
-      'YAML frontmatter must remain at the start of the guide; edit it separately',
+      'YAML frontmatter must remain at the start of the guide. Edit its values in page source.',
     );
   const errors = (source: string) => {
     const counts = new Map<string, number>();
@@ -360,7 +363,7 @@ export function canvasSection(
 export function canvasTemplate(type: CanvasKind, source: string): string {
   const templates: Partial<Record<CanvasKind, string>> = {
     text: 'Write your text here.',
-    heading: '## New section',
+    heading: '## __New section__',
     list: '⬥ First item\n    • Child item',
     image: '![Image description](https://example.com/image.png)',
     preset: '[New preset](https://presets.pvme.io/?id=replace-me)',

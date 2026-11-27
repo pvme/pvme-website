@@ -10,7 +10,6 @@ import {
   embedTextPath,
   type JsonPath,
 } from '../lib/json-source';
-import { parseGuide } from '@pvme/guide-parser';
 import type { EditSession } from '../lib/edit-session';
 import {
   canvasBlocks,
@@ -34,6 +33,8 @@ import { RichLineEditor } from './rich-line-editor';
 import { updateDraftPreview } from './inline-preview';
 import { preserveSourceLineEndings } from '../lib/source-diff';
 import { linkDisplayUrl, linkSourceUrl } from '../lib/link-destination';
+import { textareaSourceOffset } from '../lib/textarea-source';
+import { numberedSource } from './numbered-source';
 
 export class PageCanvasEditor {
   readonly root: HTMLElement;
@@ -86,6 +87,11 @@ export class PageCanvasEditor {
   private mediaPreviews = new Map<string, HTMLElement[]>();
   private previewCleanups: (() => void)[] = [];
   private advancedSource = false;
+  private pageSource?: {
+    base: string;
+    input: HTMLTextAreaElement;
+    form: HTMLElement;
+  };
   private messageSource?: {
     message: CanvasMessage;
     input: HTMLTextAreaElement;
@@ -95,6 +101,7 @@ export class PageCanvasEditor {
     private article: HTMLElement,
     private session: EditSession,
     private changed: () => void,
+    private validationChanged: () => void = () => {},
   ) {
     this.source = session.content();
     for (const image of article.querySelectorAll<HTMLImageElement>(
@@ -330,6 +337,11 @@ export class PageCanvasEditor {
       this.redoStack = [];
     }
     this.source = content;
+    this.root
+      .querySelectorAll<HTMLElement>('[data-block-source-line]')
+      .forEach((element) => {
+        element.hidden = true;
+      });
     this.status.textContent = '';
     this.changed();
     this.updateHistory();
@@ -356,8 +368,73 @@ export class PageCanvasEditor {
     this.redoStack = [];
     this.render();
   }
+  /** Pending source inputs are checked without applying or normalising them. */
+  diagnosticSource(): string {
+    if (this.pageSource) return this.pageSource.input.value;
+    if (this.messageSource)
+      return replaceCanvasBlock(
+        this.source,
+        this.messageSource.message,
+        this.messageSource.input.value,
+      );
+    const input = this.inspector.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-source]',
+    );
+    if (this.propertiesDirty && input) {
+      const block = canvasBlocks(this.source)[this.selected];
+      if (block) return replaceCanvasBlock(this.source, block, input.value);
+    }
+    return this.source;
+  }
+  /** Only highlight a unique current block containing the complete diagnostic. */
+  revealIssue(start: number, end: number, source: string): boolean {
+    if (this.pageSource) return this.openPageSource(start, end, source);
+    if (
+      source !== this.source ||
+      this.hasUnappliedChanges ||
+      !this.finishText()
+    )
+      return false;
+    if (source !== this.source) return false;
+    this.render();
+    const index = this.blocks.findIndex(
+      (block) => start >= block.start && start < block.end && end <= block.end,
+    );
+    if (index < 0) return false;
+    this.select(index, true, undefined, true);
+    const card = this.board.querySelector<HTMLElement>(
+      `[data-canvas-block="${this.blocks[index].id}"]`,
+    );
+    if (!card) return false;
+    card.dataset.guideIssue = '';
+    card.scrollIntoView?.({ block: 'center' });
+    card.focus({ preventScroll: true });
+    const input = this.inspector.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-source]',
+    );
+    if (input) {
+      const from = textareaSourceOffset(
+        this.blocks[index].source,
+        input.value,
+        start - this.blocks[index].start,
+      );
+      const to = textareaSourceOffset(
+        this.blocks[index].source,
+        input.value,
+        end - this.blocks[index].start,
+      );
+      if (from !== undefined && to !== undefined)
+        input.setSelectionRange?.(from, to);
+    }
+    return true;
+  }
   get hasUnappliedChanges() {
     return (
+      (!!this.pageSource &&
+        preserveSourceLineEndings(
+          this.pageSource.base,
+          this.pageSource.input.value,
+        ) !== this.pageSource.base) ||
       this.propertiesDirty ||
       (!!this.messageSource &&
         preserveSourceLineEndings(
@@ -368,10 +445,164 @@ export class PageCanvasEditor {
   }
   finish(): boolean {
     return (
+      this.finishPageSource() &&
       this.finishMessageSource() &&
       this.canLeaveProperties() &&
       this.finishText()
     );
+  }
+  openPageSource(
+    start = 0,
+    end = start,
+    expectedSource = this.source,
+  ): boolean {
+    if (this.pageSource) {
+      if (
+        expectedSource !== this.pageSource.input.value &&
+        expectedSource !== this.source
+      )
+        return false;
+      this.selectPageSource(start, end, expectedSource);
+      return true;
+    }
+    if (expectedSource !== this.source || !this.finish()) return false;
+    if (expectedSource !== this.source) return false;
+    const form = this.doc.createElement('form');
+    form.className = 'canvas-page-source';
+    form.dataset.pageSourceEditor = '';
+    const heading = this.doc.createElement('h3');
+    heading.textContent = 'Edit whole page source';
+    const hint = this.doc.createElement('p');
+    hint.textContent =
+      'Edit the complete guide. Apply saves to your local draft; Cancel keeps the previous version. Source lines match the checker.';
+    const editor = numberedSource(this.doc, this.source, 'Whole page source');
+    editor.input.dataset.canvasPageSource = '';
+    this.pageSource = { base: this.source, input: editor.input, form };
+    const actions = this.doc.createElement('div');
+    actions.className = 'inline-actions';
+    actions.append(
+      this.button(
+        'Apply page source',
+        () => this.finishPageSource(),
+        'pageSourceApply',
+      ),
+      this.button(
+        'Cancel source changes',
+        () => {
+          this.pageSource = undefined;
+          form.remove();
+          this.board.hidden = false;
+          this.validationChanged();
+        },
+        'pageSourceCancel',
+      ),
+    );
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.finishPageSource();
+    });
+    form.append(heading, hint, editor.root, editor.location, actions);
+    this.board.hidden = true;
+    this.propertiesOpen = false;
+    this.inspector.hidden = true;
+    this.root.prepend(form);
+    this.validationChanged();
+    this.selectPageSource(start, end, this.source);
+    return true;
+  }
+  private selectPageSource(start: number, end: number, source: string) {
+    const input = this.pageSource!.input;
+    const from = textareaSourceOffset(source, input.value, start);
+    const to = textareaSourceOffset(source, input.value, end);
+    input.focus();
+    if (from !== undefined && to !== undefined)
+      input.setSelectionRange?.(from, to);
+    if (from !== undefined) {
+      const line = input.value.slice(0, from).split('\n').length;
+      const height = parseFloat(
+        this.doc.defaultView?.getComputedStyle?.(input).lineHeight || '21',
+      );
+      input.scrollTop = Math.max(
+        0,
+        (line - 3) * (Number.isFinite(height) ? height : 21),
+      );
+      input.dispatchEvent(new this.doc.defaultView!.Event('scroll'));
+    }
+    input.dispatchEvent(new this.doc.defaultView!.Event('select'));
+    input.scrollIntoView?.({ block: 'center' });
+  }
+  private finishPageSource(): boolean {
+    const state = this.pageSource;
+    if (!state) return true;
+    try {
+      if (state.base !== this.source)
+        throw new Error(
+          'The guide changed. Cancel page source and reopen it to retain the newer edit.',
+        );
+      this.apply(preserveSourceLineEndings(state.base, state.input.value));
+      this.pageSource = undefined;
+      state.form.remove();
+      this.board.hidden = false;
+      this.render();
+      this.announce('Page source applied to your local draft.');
+      return true;
+    } catch (error) {
+      this.error(error);
+      state.input.focus();
+      return false;
+    }
+  }
+  async underlineHeading(
+    start: number,
+    end: number,
+    expectedSource: string,
+  ): Promise<boolean> {
+    if (this.pageSource) return false;
+    if (
+      this.source !== expectedSource ||
+      this.hasUnappliedChanges ||
+      !this.finishText()
+    )
+      return false;
+    const block = canvasBlocks(this.source).find(
+      (block) =>
+        block.node?.type === 'heading' &&
+        block.node.level === 2 &&
+        block.start === start &&
+        block.end === end,
+    );
+    if (!block) return false;
+    try {
+      const fragment = await canvasTextSession(
+        this.doc,
+        block,
+        this.session.loaded.previewLinks,
+      );
+      const line = fragment.session.lines.find(
+        (line) => line.kind === 'heading',
+      );
+      if (!line) return false;
+      const model = fragment.session.lineModel(line.id);
+      for (const row of model)
+        for (const part of row)
+          if (!part.marks.includes('underline')) part.marks.push('underline');
+      fragment.session.setLine(line.id, model);
+      if (
+        this.source !== expectedSource ||
+        this.hasUnappliedChanges ||
+        !this.root.isConnected
+      )
+        return false;
+      this.apply(
+        replaceCanvasBlock(this.source, block, fragment.session.content()),
+      );
+      this.render();
+      this.announce('Heading underlined. Undo restores the previous source.');
+      return true;
+    } catch (error) {
+      this.error(error);
+      return false;
+    }
   }
   private canLeaveProperties() {
     if (this.messageSource && this.hasUnappliedChanges) {
@@ -483,6 +714,7 @@ export class PageCanvasEditor {
     return true;
   }
   private history(redo: boolean) {
+    if (!this.finishPageSource()) return;
     if (!this.canLeaveProperties()) return;
     if (!this.finishText()) return;
     const from = redo ? this.redoStack : this.undoStack,
@@ -507,6 +739,7 @@ export class PageCanvasEditor {
     );
   }
   private render() {
+    this.validationChanged();
     this.messageSource = undefined;
     this.propertiesDirty = false;
     this.blocks = canvasBlocks(this.source);
@@ -684,6 +917,15 @@ export class PageCanvasEditor {
         }),
       );
       header.append(grip, more);
+      const location = this.doc.createElement('span');
+      location.className = 'canvas-source-location';
+      location.dataset.blockSourceLine = '';
+      const firstLine = this.source.slice(0, block.start).split('\n').length;
+      const lastLine = this.source
+        .slice(0, Math.max(block.start, block.end - 1))
+        .split('\n').length;
+      location.textContent = `Source line${firstLine === lastLine ? '' : 's'} ${firstLine}${firstLine === lastLine ? '' : `–${lastLine}`}`;
+      card.append(location);
       const preview = renderCanvasPreview(
         this.doc,
         block,
@@ -1303,9 +1545,11 @@ export class PageCanvasEditor {
     }
   }
   private properties() {
+    this.validationChanged();
     this.dismissProperties = () => {
       this.propertiesDirty = false;
       this.propertiesOpen = false;
+      this.validationChanged();
       this.inspector.hidden = true;
     };
     this.inspector.replaceChildren();
@@ -1587,7 +1831,13 @@ export class PageCanvasEditor {
         try {
           const current = canvasBlocks(this.source)[this.selected];
           if (!current) return;
-          this.apply(replaceCanvasBlock(this.source, current, input.value));
+          this.apply(
+            replaceCanvasBlock(
+              this.source,
+              current,
+              preserveSourceLineEndings(current.source, input.value),
+            ),
+          );
           this.render();
           this.announce('Section updated.');
         } catch (error) {
@@ -1612,13 +1862,6 @@ export class PageCanvasEditor {
     reset.textContent = 'Cancel';
     reset.title = 'Discard unapplied property changes';
     this.inspector.append(reset);
-    const diagnostics = parseGuide(this.source).diagnostics;
-    if (diagnostics.length) {
-      const note = this.doc.createElement('p');
-      note.className = 'canvas-diagnostics';
-      note.textContent = `${diagnostics.length} source notice${diagnostics.length === 1 ? '' : 's'}. Review the source diff before exporting.`;
-      this.inspector.append(note);
-    }
     this.positionInspector();
   }
   private embedControls(preview: HTMLElement, index: number) {

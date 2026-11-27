@@ -669,7 +669,7 @@ export function renderGuide(
             if (!parentCollector) collectedPresets = cards;
             const content = entries
               .map((entry) => {
-                if (!parentCollector) presetLabel = entry.nodes;
+                presetLabel = entry.nodes;
                 return `<p>${inline(entry.nodes)}</p>${preview(entry.finalUrl, analysis)}`;
               })
               .join('');
@@ -776,16 +776,87 @@ export function renderGuide(
     }
     return output.join('');
   };
-  let html = doc.messages
-    .map((m) => {
-      const mechanic = mechanicMessages.has(m);
-      const abilityBars = m.blocks.some((block) => barImages.has(block));
-      inMechanicMessage = mechanic;
-      const content = blocks(m.blocks);
-      inMechanicMessage = false;
-      if (!content && !m.anchors.length) return '';
-      return `${m.anchors.map((a) => `<span class="anchor" id="${escape(a.tag)}"></span>`).join('')}<section class="guide-message${mechanic ? ' mechanic-message' : ''}${abilityBars ? ' ability-bar-message' : ''}">${content}</section>`;
-    })
+  const renderMessage = (m: (typeof doc.messages)[number]) => {
+    const mechanic = mechanicMessages.has(m);
+    const abilityBars = m.blocks.some((block) => barImages.has(block));
+    inMechanicMessage = mechanic;
+    const content = blocks(m.blocks);
+    inMechanicMessage = false;
+    if (!content && !m.anchors.length) return '';
+    return `${m.anchors.map((a) => `<span class="anchor" id="${escape(a.tag)}"></span>`).join('')}<section class="guide-message${mechanic ? ' mechanic-message' : ''}${abilityBars ? ' ability-bar-message' : ''}">${content}</section>`;
+  };
+  // Discord message separators are publication boundaries, not equipment
+  // choices. Share a collector across consecutive preset-only messages, while
+  // retaining each source message, anchor and editable leaf in the output.
+  const presetRow = (block: BlockNode): boolean => {
+    if (block.type === 'paragraph')
+      return !!presetAnalysis.paragraphs
+        .get(block)
+        ?.every((entry) => entry.finalUrl);
+    if (block.type === 'list')
+      return (
+        block.items.length > 0 &&
+        block.items.every(
+          (item) =>
+            presetAnalysis.items.has(item) &&
+            item.children.every(
+              (child) => child.type === 'paragraph' || child.type === 'blank',
+            ),
+        )
+      );
+    return false;
+  };
+  const presetMessage = (
+    message: (typeof doc.messages)[number],
+    allowHeading: boolean,
+  ) => {
+    let seenPreset = false;
+    return (
+      !mechanicMessages.has(message) &&
+      message.blocks.every((block) => {
+        if (presetRow(block)) {
+          seenPreset = true;
+          return true;
+        }
+        return (
+          block.type === 'blank' ||
+          (block.type === 'command' && block.valid) ||
+          (allowHeading && !seenPreset && block.type === 'heading')
+        );
+      })
+    );
+  };
+  const renderedMessages: string[] = [];
+  for (let index = 0; index < doc.messages.length; index++) {
+    const message = doc.messages[index];
+    if (message.blocks.some(presetRow) && presetMessage(message, true)) {
+      let end = index + 1;
+      let lastPreset = index;
+      while (
+        end < doc.messages.length &&
+        presetMessage(doc.messages[end], false)
+      ) {
+        if (doc.messages[end].blocks.some(presetRow)) lastPreset = end;
+        end++;
+      }
+      if (lastPreset > index) {
+        const cards: string[] = [];
+        const previousLabel = presetLabel;
+        collectedPresets = cards;
+        const content = doc.messages
+          .slice(index, lastPreset + 1)
+          .map(renderMessage)
+          .join('');
+        collectedPresets = undefined;
+        presetLabel = previousLabel;
+        renderedMessages.push(previewGroup(content, cards));
+        index = lastPreset;
+        continue;
+      }
+    }
+    renderedMessages.push(renderMessage(message));
+  }
+  let html = renderedMessages
     .join('')
     .replace(
       /<a\b([^>]*\bhref="https?:\/\/[^"]+"[^>]*)>/g,
